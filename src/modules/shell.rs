@@ -1,0 +1,376 @@
+use crate::modules::bags::Bag;
+use crate::modules::draw::Draw;
+use crate::modules::encounters::Encounter;
+use crate::modules::markup::{self, DiceExpr};
+use crate::modules::tables::Table;
+use colored::Colorize;
+use std::io::{self, BufRead, Write};
+
+type NamedBag = (&'static str, Bag<Encounter>);
+type NamedTable = (&'static str, Table<Encounter>);
+
+const HELP: &str = "\
+**tables**            the tables loaded and how much is left in each
+**draw** *table* [n]  draw n items, default 1; table names can be abbreviated
+**refill** [*table*]  put everything back, every table if none is named
+**roll** *2d6+3*      roll a dice expression
+**render** *markup*   preview a markup string
+**quit**              leave, as does ctrl-D";
+
+/// Runs a session over `bags` and `tables`. With `args` it runs them as a
+/// single command and exits; otherwise it prompts until `quit` or end of input.
+pub fn run(bags: Vec<NamedBag>, tables: Vec<NamedTable>, args: &[String]) {
+    let mut session = Session::new(bags, tables);
+
+    if !args.is_empty() {
+        session.command(&args.join(" "));
+        return;
+    }
+
+    println!("{}", markup::render("**Mothership tables.** *help* lists the commands."));
+    session.list();
+
+    let stdin = io::stdin();
+    let mut lines = stdin.lock().lines();
+    loop {
+        print!("> ");
+        io::stdout().flush().ok();
+
+        match lines.next() {
+            Some(Ok(line)) => {
+                if session.command(&line) == Flow::Quit {
+                    break;
+                }
+            }
+            Some(Err(error)) => {
+                eprintln!("{error}");
+                break;
+            }
+            // ctrl-D: the newline leaves the terminal prompt on its own line.
+            None => {
+                println!();
+                break;
+            }
+        }
+    }
+}
+
+#[derive(PartialEq)]
+enum Flow {
+    Continue,
+    Quit,
+}
+
+struct Session {
+    bags: Vec<NamedBag>,
+    tables: Vec<NamedTable>,
+}
+
+/// The one bag or table a name resolved to. Borrowing it here rather than
+/// handing back an index keeps the two lists from being mixed up.
+enum Found<'a> {
+    Bag(&'static str, &'a mut Bag<Encounter>),
+    Table(&'static str, &'a mut Table<Encounter>),
+}
+
+impl Session {
+    /// Names address everything in the session, so a repeated one would leave
+    /// an entry unreachable.
+    fn new(bags: Vec<NamedBag>, tables: Vec<NamedTable>) -> Self {
+        let mut names: Vec<&str> = bags.iter().map(|(name, _)| *name).collect();
+        names.extend(tables.iter().map(|(name, _)| *name));
+        names.sort_unstable();
+
+        if let Some(pair) = names.windows(2).find(|pair| pair[0] == pair[1]) {
+            panic!("two tables are called {:?}, names have to be unique", pair[0]);
+        }
+
+        Session { bags, tables }
+    }
+
+    fn command(&mut self, line: &str) -> Flow {
+        let line = line.trim();
+        let (head, rest) = line.split_once(' ').unwrap_or((line, ""));
+        let rest = rest.trim();
+
+        match head {
+            "" => {}
+            "help" | "?" => println!("{}", markup::render(HELP)),
+            "tables" | "ls" => self.list(),
+            "draw" | "d" => self.draw(rest),
+            "refill" => self.refill(rest),
+            "roll" => roll(rest),
+            "render" => println!("{}", markup::render(rest)),
+            "quit" | "exit" | "q" => return Flow::Quit,
+            _ => println!("unknown command {head:?}, try `help`"),
+        }
+
+        Flow::Continue
+    }
+
+    fn list(&self) {
+        println!("Bags");
+        for (name, bag) in &self.bags {
+            println!("{}", row(name, bag));
+        }
+
+        println!("Tables");
+        for (name, table) in &self.tables {
+            println!("{}", row(name, table));
+        }
+    }
+
+    /// `draw <name> [count]`
+    fn draw(&mut self, rest: &str) {
+        let (name, count) = split_count(rest);
+
+        match self.resolve(name) {
+            Some(Found::Bag(name, bag)) => draw_from(name, bag, count),
+            Some(Found::Table(name, table)) => draw_from(name, table, count),
+            None => {}
+        }
+    }
+
+    /// `refill [name]`, or everything when no name is given.
+    fn refill(&mut self, name: &str) {
+        if name.is_empty() {
+            for (name, bag) in &mut self.bags {
+                refill_one(name, bag);
+            }
+            for (name, table) in &mut self.tables {
+                refill_one(name, table);
+            }
+            return;
+        }
+
+        match self.resolve(name) {
+            Some(Found::Bag(name, bag)) => refill_one(name, bag),
+            Some(Found::Table(name, table)) => refill_one(name, table),
+            None => {}
+        }
+    }
+
+    /// Borrows the one bag or table `name` addresses, telling the user when
+    /// that is not exactly one of them.
+    fn resolve(&mut self, name: &str) -> Option<Found<'_>> {
+        if name.is_empty() {
+            println!("which table? `tables` lists them");
+            return None;
+        }
+
+        let bags = name_matches(&self.bags, name);
+        let tables = name_matches(&self.tables, name);
+
+        match (&bags[..], &tables[..]) {
+            ([index], []) => {
+                let (name, bag) = &mut self.bags[*index];
+                Some(Found::Bag(name, bag))
+            }
+            ([], [index]) => {
+                let (name, table) = &mut self.tables[*index];
+                Some(Found::Table(name, table))
+            }
+            ([], []) => {
+                println!("no table called {name:?}, `tables` lists them");
+                None
+            }
+            // Several entries share the prefix, or a bag and a table do.
+            // Construction rejects duplicate names, so typing more resolves it.
+            _ => {
+                let matched: Vec<&str> = bags
+                    .iter()
+                    .map(|index| self.bags[*index].0)
+                    .chain(tables.iter().map(|index| self.tables[*index].0))
+                    .collect();
+
+                println!("{name:?} matches {}", matched.join(", "));
+                None
+            }
+        }
+    }
+}
+
+/// Indexes of the entries `name` addresses. An exact name wins outright, so a
+/// name that is also the prefix of another stays reachable.
+fn name_matches<S>(entries: &[(&'static str, S)], name: &str) -> Vec<usize> {
+    if let Some(index) = entries.iter().position(|(label, _)| *label == name) {
+        return vec![index];
+    }
+
+    entries
+        .iter()
+        .enumerate()
+        .filter_map(|(index, (label, _))| label.starts_with(name).then_some(index))
+        .collect()
+}
+
+fn draw_from<S: Draw<Item = Encounter>>(name: &str, source: &mut S, count: usize) {
+    for _ in 0..count {
+        match source.draw() {
+            Some(item) => println!("{}: {}", name.red(), item),
+            None => {
+                println!("{name} is empty, `refill {name}` to put it all back");
+                break;
+            }
+        }
+    }
+}
+
+/// `"artifacts 3"` splits into `("artifacts", 3)`; anything without a trailing
+/// number keeps its whole text and draws once.
+fn split_count(rest: &str) -> (&str, usize) {
+    match rest.rsplit_once(' ') {
+        Some((name, count)) => match count.parse() {
+            Ok(count) => (name.trim(), count),
+            Err(_) => (rest, 1),
+        },
+        None => (rest, 1),
+    }
+}
+
+/// One line of `tables`, as `  artifacts    100 left  unique`.
+fn row<S: Draw>(name: &str, source: &S) -> String {
+    let measure = if source.exhausts() { "left" } else { "rows" };
+    let unique = if source.unique() { "  unique" } else { "" };
+
+    format!("  {name:<12}{:>4} {measure}{unique}", source.remaining())
+}
+
+fn refill_one<S: Draw>(name: &str, source: &mut S) {
+    source.fill();
+
+    if source.exhausts() {
+        println!("{name} refilled, {} available", source.remaining());
+    } else {
+        println!("{name} rolls fresh every time, nothing to put back");
+    }
+}
+
+fn roll(expr: &str) {
+    match DiceExpr::parse(expr) {
+        Some(dice) => println!("{expr} = {}", dice.eval()),
+        None => println!("{expr:?} is not a dice expression, try `roll 2d6+3`"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn bag() -> Bag<Encounter> {
+        Bag::new(HashMap::from([(Encounter::markup("relic"), 1.0)]), false)
+    }
+
+    fn table(unique: bool) -> Table<Encounter> {
+        Table::new(HashMap::from([(1..=10, Encounter::markup("a diver"))]), unique)
+    }
+
+    /// One bag and two tables, so a table index can land past the end of the
+    /// bag list.
+    fn session() -> Session {
+        Session::new(
+            vec![("artifacts", bag())],
+            vec![("encounters", table(false)), ("rumours", table(true))],
+        )
+    }
+
+    fn resolved(session: &mut Session, name: &str) -> Option<&'static str> {
+        match session.resolve(name)? {
+            Found::Bag(name, _) | Found::Table(name, _) => Some(name),
+        }
+    }
+
+    #[test]
+    fn names_resolve_across_both_lists() {
+        let mut session = session();
+
+        assert_eq!(resolved(&mut session, "artifacts"), Some("artifacts"));
+        assert_eq!(resolved(&mut session, "encounters"), Some("encounters"));
+        assert_eq!(resolved(&mut session, "rumours"), Some("rumours"));
+        assert_eq!(resolved(&mut session, "nope"), None);
+    }
+
+    #[test]
+    fn prefixes_resolve_when_they_match_one_entry() {
+        let mut session = session();
+
+        assert_eq!(resolved(&mut session, "art"), Some("artifacts"));
+        assert_eq!(resolved(&mut session, "enc"), Some("encounters"));
+        assert_eq!(resolved(&mut session, "r"), Some("rumours"));
+    }
+
+    #[test]
+    fn an_exact_name_wins_over_a_longer_one() {
+        let mut session = Session::new(vec![("art", bag()), ("artifacts", bag())], vec![]);
+
+        assert_eq!(resolved(&mut session, "art"), Some("art"));
+        assert_eq!(resolved(&mut session, "artif"), Some("artifacts"));
+    }
+
+    #[test]
+    fn a_prefix_matching_a_bag_and_a_table_resolves_to_neither() {
+        let mut session = Session::new(vec![("relics", bag())], vec![("rumours", table(false))]);
+
+        assert_eq!(resolved(&mut session, "r"), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "names have to be unique")]
+    fn a_name_used_by_a_bag_and_a_table_is_rejected() {
+        Session::new(vec![("loot", bag())], vec![("loot", table(false))]);
+    }
+
+    #[test]
+    fn a_table_past_the_end_of_the_bags_is_safe() {
+        let mut session = session();
+
+        session.command("draw rumours");
+        assert_eq!(session.tables[1].1.remaining(), 0, "a unique row is consumed");
+
+        session.command("refill rumours");
+        assert_eq!(session.tables[1].1.remaining(), 1);
+    }
+
+    #[test]
+    fn drawing_from_a_table_leaves_the_bags_alone() {
+        let mut session = session();
+
+        session.command("draw encounters 3");
+
+        assert_eq!(session.bags[0].1.remaining(), 1);
+    }
+
+    #[test]
+    fn refill_with_no_name_covers_both_kinds() {
+        let mut session = session();
+        session.command("draw artifacts");
+        session.command("draw rumours");
+        assert_eq!(session.bags[0].1.remaining(), 0);
+        assert_eq!(session.tables[1].1.remaining(), 0);
+
+        session.command("refill");
+
+        assert_eq!(session.bags[0].1.remaining(), 1);
+        assert_eq!(session.tables[1].1.remaining(), 1);
+    }
+
+    #[test]
+    fn split_count_only_takes_a_trailing_number() {
+        assert_eq!(split_count("artifacts 3"), ("artifacts", 3));
+        assert_eq!(split_count("artifacts"), ("artifacts", 1));
+        assert_eq!(split_count("the reactor is failing"), ("the reactor is failing", 1));
+    }
+
+    #[test]
+    fn a_row_counts_down_only_when_drawing_exhausts() {
+        let session = session();
+        let (name, bag) = &session.bags[0];
+        let (rolling, table) = &session.tables[0];
+        let (consuming, unique_table) = &session.tables[1];
+
+        assert!(row(name, bag).contains("1 left"));
+        assert!(row(rolling, table).contains("1 rows"));
+        assert!(row(consuming, unique_table).contains("1 left  unique"));
+    }
+}
