@@ -22,22 +22,52 @@ impl<T> Item<T> {
     }
 }
 
+/// Why a table could not be built. The loader adds the file name.
+#[derive(Debug, PartialEq)]
+pub enum TableError {
+    Overlap(RangeInclusive<u32>, RangeInclusive<u32>),
+    Empty,
+}
+
+impl std::fmt::Display for TableError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Overlap(earlier, later) => {
+                write!(f, "rows {earlier:?} and {later:?} overlap")
+            }
+            Self::Empty => write!(f, "a table needs at least one row"),
+        }
+    }
+}
+
+impl std::error::Error for TableError {}
+
 impl<T: Clone + Eq + std::hash::Hash> Table<T> {
     pub(crate) fn new(distributions: HashMap<RangeInclusive<u32>, T>, unique: bool) -> Self {
-        if let Some(overlap) = Self::find_overlap(distributions.keys().collect()) {
-            panic!("tried to create a table with an overlap of {:?}", overlap);
-        }
-        let min: u32 = *distributions.keys().map(|r| r.start()).min().unwrap();
-        let max: u32 = *distributions.keys().map(|r| r.end()).max().unwrap();
+        Self::try_new(distributions, unique).unwrap_or_else(|error| panic!("{error}"))
+    }
 
-        Table {
+    /// Fails rather than panics, because these rows come from a file the user
+    /// edits by hand.
+    pub(crate) fn try_new(
+        distributions: HashMap<RangeInclusive<u32>, T>,
+        unique: bool,
+    ) -> Result<Self, TableError> {
+        if let Some((earlier, later)) = Self::find_overlap(distributions.keys().collect()) {
+            return Err(TableError::Overlap(earlier.clone(), later.clone()));
+        }
+
+        let min: u32 = *distributions.keys().map(|r| r.start()).min().ok_or(TableError::Empty)?;
+        let max: u32 = *distributions.keys().map(|r| r.end()).max().ok_or(TableError::Empty)?;
+
+        Ok(Table {
             items: distributions.into_iter()
                 .map(|(k, v)| (k, Item::new(v, true)))
                 .collect(),
             max,
             min,
             unique
-        }
+        })
     }
 
     fn find_overlap(ranges: Vec<&RangeInclusive<u32>>) -> Option<(&RangeInclusive<u32>, &RangeInclusive<u32>)> {
@@ -120,6 +150,23 @@ mod tests {
         // 5 is in BOTH 1..=5 and 5..=10 — must be rejected.
         // Fails with `<` in find_overlap; requires `<=` for RangeInclusive.
         table(vec![(1..=5, "a"), (5..=10, "b")], false);
+    }
+
+    #[test]
+    fn overlapping_rows_name_both_ranges() {
+        let error = Table::try_new(HashMap::from([(1..=10, "a"), (5..=15, "b")]), false)
+            .err().unwrap();
+        let message = error.to_string();
+
+        assert!(message.contains("overlap"), "{message}");
+        assert!(message.contains("1..=10") && message.contains("5..=15"), "{message}");
+    }
+
+    #[test]
+    fn an_empty_table_is_rejected() {
+        let error = Table::<&str>::try_new(HashMap::new(), false).err().unwrap();
+
+        assert_eq!(error, TableError::Empty);
     }
 
     #[test]

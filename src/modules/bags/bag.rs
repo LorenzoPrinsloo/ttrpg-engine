@@ -10,22 +10,60 @@ pub struct Bag<T> {
     unique: bool
 }
 
+/// Why a bag could not be built. Carries no entry position: the ratios come
+/// from a map, which has no order to point at. The loader adds the file name.
+#[derive(Debug, PartialEq)]
+pub enum BagError {
+    /// Ratios are quantised to hundredths, so the sum is carried as percent.
+    Ratios(u32),
+    NotARatio(f64),
+}
+
+impl std::fmt::Display for BagError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ratios(percent) => write!(
+                f,
+                "the ratios add up to {}, they have to add up to 1.0",
+                f64::from(*percent) / 100.0
+            ),
+            Self::NotARatio(ratio) => {
+                write!(f, "a ratio of {ratio} is not between 0.0 and 1.0")
+            }
+        }
+    }
+}
+
+impl std::error::Error for BagError {}
+
 impl<T: Clone + Eq + std::hash::Hash> Bag<T> {
     pub(crate) fn new(distributions: HashMap<T, f64>, unique: bool) -> Self {
-        let total_denominator: f64 = distributions.values()
-            .into_iter()
-            .map(|ratio| (ratio * 100.0).round())
-            .sum();
+        Self::try_new(distributions, unique).unwrap_or_else(|error| panic!("{error}"))
+    }
 
-        assert_eq!(total_denominator, 100.0, "the sum of all ratios provided must be exactly 1.0");
-
-        let items: Vec<T> = Self::starting_items(&distributions);
-
-        Self {
-            items,
-            distributions,
-            unique
+    /// Fails rather than panics, because these ratios come from a file the
+    /// user edits by hand.
+    pub(crate) fn try_new(
+        distributions: HashMap<T, f64>,
+        unique: bool,
+    ) -> Result<Self, BagError> {
+        let mut percent = 0;
+        for ratio in distributions.values() {
+            if !(0.0..=1.0).contains(ratio) {
+                return Err(BagError::NotARatio(*ratio));
+            }
+            percent += (ratio * 100.0).round() as u32;
         }
+
+        if percent != 100 {
+            return Err(BagError::Ratios(percent));
+        }
+
+        Ok(Self {
+            items: Self::starting_items(&distributions),
+            distributions,
+            unique,
+        })
     }
 
     fn starting_items(distributions: &HashMap<T, f64>) -> Vec<T> {
@@ -89,6 +127,22 @@ mod tests {
 
     fn copies<T: Eq>(bag: &Bag<T>, item: T) -> usize {
         bag.items.iter().filter(|held| **held == item).count()
+    }
+
+    #[test]
+    fn ratios_that_do_not_add_up_are_reported() {
+        let error = Bag::try_new(HashMap::from([("common", 0.5), ("rare", 0.3)]), false)
+            .err().unwrap();
+
+        assert_eq!(error, BagError::Ratios(80));
+        assert!(error.to_string().contains("0.8"), "{error}");
+    }
+
+    #[test]
+    fn a_ratio_outside_zero_to_one_is_reported() {
+        let error = Bag::try_new(HashMap::from([("impossible", 1.5)]), false).err().unwrap();
+
+        assert_eq!(error, BagError::NotARatio(1.5));
     }
 
     #[test]
