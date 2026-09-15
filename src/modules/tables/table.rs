@@ -43,10 +43,6 @@ impl std::fmt::Display for TableError {
 impl std::error::Error for TableError {}
 
 impl<T: Clone + Eq + std::hash::Hash> Table<T> {
-    pub(crate) fn new(distributions: HashMap<RangeInclusive<u32>, T>, unique: bool) -> Self {
-        Self::try_new(distributions, unique).unwrap_or_else(|error| panic!("{error}"))
-    }
-
     /// Fails rather than panics, because these rows come from a file the user
     /// edits by hand.
     pub(crate) fn try_new(
@@ -130,26 +126,22 @@ mod tests {
     // -- helpers ------------------------------------------------------------
 
     fn table(entries: Vec<(RangeInclusive<u32>, &str)>, unique: bool) -> Table<String> {
-        Table::new(
+        Table::try_new(
             entries.into_iter().map(|(r, s)| (r, s.to_string())).collect(),
             unique,
         )
+        .unwrap()
     }
 
     // -- construction / validation ------------------------------------------
 
     #[test]
-    #[should_panic(expected = "overlap")]
-    fn overlapping_ranges_panic() {
-        table(vec![(1..=10, "a"), (5..=15, "b")], false);
-    }
-
-    #[test]
-    #[should_panic(expected = "overlap")]
     fn adjacent_inclusive_ranges_overlap() {
         // 5 is in BOTH 1..=5 and 5..=10 — must be rejected.
-        // Fails with `<` in find_overlap; requires `<=` for RangeInclusive.
-        table(vec![(1..=5, "a"), (5..=10, "b")], false);
+        // Passes with `<` in find_overlap; requires `<=` for RangeInclusive.
+        let rows = HashMap::from([(1..=5, "a"), (5..=10, "b")]);
+
+        assert!(Table::try_new(rows, false).is_err());
     }
 
     #[test]

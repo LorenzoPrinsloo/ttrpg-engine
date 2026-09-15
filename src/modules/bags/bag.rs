@@ -37,10 +37,6 @@ impl std::fmt::Display for BagError {
 impl std::error::Error for BagError {}
 
 impl<T: Clone + Eq + std::hash::Hash> Bag<T> {
-    pub(crate) fn new(distributions: HashMap<T, f64>, unique: bool) -> Self {
-        Self::try_new(distributions, unique).unwrap_or_else(|error| panic!("{error}"))
-    }
-
     /// Fails rather than panics, because these ratios come from a file the
     /// user edits by hand.
     pub(crate) fn try_new(
@@ -147,10 +143,11 @@ mod tests {
 
     #[test]
     fn copies_are_proportional_to_the_ratios() {
-        let bag = Bag::new(
+        let bag = Bag::try_new(
             HashMap::from([("common", 0.5), ("uncommon", 0.3), ("rare", 0.2)]),
             false,
-        );
+        )
+        .unwrap();
 
         // 50:30:20 reduces to 5:3:2.
         assert_eq!(copies(&bag, "common"), 5);
@@ -160,10 +157,11 @@ mod tests {
 
     #[test]
     fn a_likelier_item_is_never_outnumbered_by_a_rarer_one() {
-        let bag = Bag::new(
+        let bag = Bag::try_new(
             HashMap::from([("common", 0.5), ("uncommon", 0.3), ("rare", 0.2)]),
             false,
-        );
+        )
+        .unwrap();
 
         assert!(copies(&bag, "common") > copies(&bag, "uncommon"));
         assert!(copies(&bag, "uncommon") > copies(&bag, "rare"));

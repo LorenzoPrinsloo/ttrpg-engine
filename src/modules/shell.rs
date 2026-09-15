@@ -6,8 +6,8 @@ use crate::modules::tables::Table;
 use colored::Colorize;
 use std::io::{self, BufRead, Write};
 
-type NamedBag = (&'static str, Bag<Encounter>);
-type NamedTable = (&'static str, Table<Encounter>);
+type NamedBag = (String, Bag<Encounter>);
+type NamedTable = (String, Table<Encounter>);
 
 const HELP: &str = "\
 **tables**            the tables loaded and how much is left in each
@@ -69,16 +69,16 @@ struct Session {
 /// The one bag or table a name resolved to. Borrowing it here rather than
 /// handing back an index keeps the two lists from being mixed up.
 enum Found<'a> {
-    Bag(&'static str, &'a mut Bag<Encounter>),
-    Table(&'static str, &'a mut Table<Encounter>),
+    Bag(&'a str, &'a mut Bag<Encounter>),
+    Table(&'a str, &'a mut Table<Encounter>),
 }
 
 impl Session {
     /// Names address everything in the session, so a repeated one would leave
     /// an entry unreachable.
     fn new(bags: Vec<NamedBag>, tables: Vec<NamedTable>) -> Self {
-        let mut names: Vec<&str> = bags.iter().map(|(name, _)| *name).collect();
-        names.extend(tables.iter().map(|(name, _)| *name));
+        let mut names: Vec<&str> = bags.iter().map(|(name, _)| name.as_str()).collect();
+        names.extend(tables.iter().map(|(name, _)| name.as_str()));
         names.sort_unstable();
 
         if let Some(pair) = names.windows(2).find(|pair| pair[0] == pair[1]) {
@@ -179,8 +179,8 @@ impl Session {
             _ => {
                 let matched: Vec<&str> = bags
                     .iter()
-                    .map(|index| self.bags[*index].0)
-                    .chain(tables.iter().map(|index| self.tables[*index].0))
+                    .map(|index| self.bags[*index].0.as_str())
+                    .chain(tables.iter().map(|index| self.tables[*index].0.as_str()))
                     .collect();
 
                 println!("{name:?} matches {}", matched.join(", "));
@@ -192,8 +192,8 @@ impl Session {
 
 /// Indexes of the entries `name` addresses. An exact name wins outright, so a
 /// name that is also the prefix of another stays reachable.
-fn name_matches<S>(entries: &[(&'static str, S)], name: &str) -> Vec<usize> {
-    if let Some(index) = entries.iter().position(|(label, _)| *label == name) {
+fn name_matches<S>(entries: &[(String, S)], name: &str) -> Vec<usize> {
+    if let Some(index) = entries.iter().position(|(label, _)| label == name) {
         return vec![index];
     }
 
@@ -259,23 +259,23 @@ mod tests {
     use std::collections::HashMap;
 
     fn bag() -> Bag<Encounter> {
-        Bag::new(HashMap::from([(Encounter::markup("relic"), 1.0)]), false)
+        Bag::try_new(HashMap::from([(Encounter::markup("relic"), 1.0)]), false).unwrap()
     }
 
     fn table(unique: bool) -> Table<Encounter> {
-        Table::new(HashMap::from([(1..=10, Encounter::markup("a diver"))]), unique)
+        Table::try_new(HashMap::from([(1..=10, Encounter::markup("a diver"))]), unique).unwrap()
     }
 
     /// One bag and two tables, so a table index can land past the end of the
     /// bag list.
     fn session() -> Session {
         Session::new(
-            vec![("artifacts", bag())],
-            vec![("encounters", table(false)), ("rumours", table(true))],
+            vec![("artifacts".to_string(), bag())],
+            vec![("encounters".to_string(), table(false)), ("rumours".to_string(), table(true))],
         )
     }
 
-    fn resolved(session: &mut Session, name: &str) -> Option<&'static str> {
+    fn resolved<'a>(session: &'a mut Session, name: &str) -> Option<&'a str> {
         match session.resolve(name)? {
             Found::Bag(name, _) | Found::Table(name, _) => Some(name),
         }
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn an_exact_name_wins_over_a_longer_one() {
-        let mut session = Session::new(vec![("art", bag()), ("artifacts", bag())], vec![]);
+        let mut session = Session::new(vec![("art".to_string(), bag()), ("artifacts".to_string(), bag())], vec![]);
 
         assert_eq!(resolved(&mut session, "art"), Some("art"));
         assert_eq!(resolved(&mut session, "artif"), Some("artifacts"));
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn a_prefix_matching_a_bag_and_a_table_resolves_to_neither() {
-        let mut session = Session::new(vec![("relics", bag())], vec![("rumours", table(false))]);
+        let mut session = Session::new(vec![("relics".to_string(), bag())], vec![("rumours".to_string(), table(false))]);
 
         assert_eq!(resolved(&mut session, "r"), None);
     }
@@ -318,7 +318,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "names have to be unique")]
     fn a_name_used_by_a_bag_and_a_table_is_rejected() {
-        Session::new(vec![("loot", bag())], vec![("loot", table(false))]);
+        Session::new(vec![("loot".to_string(), bag())], vec![("loot".to_string(), table(false))]);
     }
 
     #[test]

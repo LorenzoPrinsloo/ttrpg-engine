@@ -1,0 +1,22 @@
+# Ratios are fractions of the whole bag and add up to 1.0.
+# Entry text is markup: write it in ''' quotes, which do no escaping.
+
+[[items]]
+ratio = 0.1
+text = '''A Diver'''
+
+[[items]]
+ratio = 0.3
+text = '''[1d10] Escaped Child Android(s)'''
+
+[[items]]
+ratio = 0.3
+text = '''[1d5] Former CLOUDBANK Research Scientist(s)'''
+
+[[items]]
+ratio = 0.2
+text = '''[1d5] **Security Android(s)** (pg. 10)'''
+
+[[items]]
+ratio = 0.1
+text = '''Ghost in the Machine'''

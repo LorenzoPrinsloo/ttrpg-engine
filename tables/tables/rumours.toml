@@ -1,0 +1,25 @@
+# Example table — replace these rows with your own.
+#
+# Ranges are inclusive and must not overlap; a roll landing in a gap is
+# rerolled. The die is implied by the rows: this one rolls 1-10.
+# Leave `unique` off and every draw is a fresh roll, repeats included.
+
+[[rows]]
+range = "1-3"
+text = '''The **reactor** shudders. Everyone Close takes {red|[1d5] Stress}.'''
+
+[[rows]]
+range = "4-6"
+text = '''*Nothing* on the scopes. Somehow that is worse.'''
+
+[[rows]]
+range = "7-8"
+text = '''**[1d5] bodies** in the corridor, none of them crew.'''
+
+[[rows]]
+range = "9"
+text = '''A voice on comms reads back __your own transmission__, [2d6] hours old.'''
+
+[[rows]]
+range = "10"
+text = '''{bright cyan|**Something answers.**} Make a *Fear Save*.'''
