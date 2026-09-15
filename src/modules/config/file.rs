@@ -1,8 +1,8 @@
 use crate::modules::config::range::RowRange;
 use serde::Deserialize;
 
-/// A bag, from `tables/bags/<name>.toml`. Ratios are fractions of the whole
-/// bag and have to add up to 1.0.
+/* A bag, from `tables/bags/<name>.toml`. Ratios are fractions of the whole
+   bag and have to add up to 1.0. */
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BagFile {
@@ -11,8 +11,8 @@ pub struct BagFile {
     pub items: Vec<ItemEntry>,
 }
 
-/// A table, from `tables/tables/<name>.toml`. Ranges are inclusive and must
-/// not overlap.
+/* A table, from `tables/tables/<name>.toml`. Ranges are inclusive and must
+   not overlap. */
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RowsFile {
@@ -87,8 +87,8 @@ mod tests {
 
     #[test]
     fn a_top_level_key_below_the_first_entry_is_rejected() {
-        // The trap worth a test: after [[items]], `unique` would belong to
-        // that entry, which `deny_unknown_fields` catches.
+        /* The trap worth a test: after [[items]], `unique` would belong to
+           that entry, which `deny_unknown_fields` catches. */
         let error = toml::from_str::<BagFile>("[[items]]\nratio = 1.0\ntext = 'x'\nunique = true")
             .err()
             .unwrap()

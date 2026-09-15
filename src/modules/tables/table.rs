@@ -7,7 +7,7 @@ pub struct Table<T> {
     items: HashMap<RangeInclusive<u32>, Item<T>>,
     max: u32,
     min: u32,
-    // are items in this bag unique (Have only 1 available and should remove the chance of finding one when one is discovered)
+    /* are items in this bag unique (Have only 1 available and should remove the chance of finding one when one is discovered) */
     unique: bool
 }
 
@@ -22,7 +22,7 @@ impl<T> Item<T> {
     }
 }
 
-/// Why a table could not be built. The loader adds the file name.
+/* Why a table could not be built. The loader adds the file name. */
 #[derive(Debug, PartialEq)]
 pub enum TableError {
     Overlap(RangeInclusive<u32>, RangeInclusive<u32>),
@@ -43,8 +43,8 @@ impl std::fmt::Display for TableError {
 impl std::error::Error for TableError {}
 
 impl<T: Clone + Eq + std::hash::Hash> Table<T> {
-    /// Fails rather than panics, because these rows come from a file the user
-    /// edits by hand.
+    /* Fails rather than panics, because these rows come from a file the user
+       edits by hand. */
     pub(crate) fn try_new(
         distributions: HashMap<RangeInclusive<u32>, T>,
         unique: bool,
@@ -111,8 +111,8 @@ impl<T: Clone + Eq + std::hash::Hash> Draw for Table<T> {
         self.unique
     }
 
-    /// Rows are only taken out of play when the table is unique; otherwise
-    /// every draw is a fresh roll over all of them.
+    /* Rows are only taken out of play when the table is unique; otherwise
+       every draw is a fresh roll over all of them. */
     fn exhausts(&self) -> bool {
         self.unique
     }
@@ -123,7 +123,7 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
 
-    // -- helpers ------------------------------------------------------------
+    /* -- helpers ------------------------------------------------------------ */
 
     fn table(entries: Vec<(RangeInclusive<u32>, &str)>, unique: bool) -> Table<String> {
         Table::try_new(
@@ -133,12 +133,12 @@ mod tests {
         .unwrap()
     }
 
-    // -- construction / validation ------------------------------------------
+    /* -- construction / validation ------------------------------------------ */
 
     #[test]
     fn adjacent_inclusive_ranges_overlap() {
-        // 5 is in BOTH 1..=5 and 5..=10 — must be rejected.
-        // Passes with `<` in find_overlap; requires `<=` for RangeInclusive.
+        /* 5 is in BOTH 1..=5 and 5..=10 — must be rejected.
+           Passes with `<` in find_overlap; requires `<=` for RangeInclusive. */
         let rows = HashMap::from([(1..=5, "a"), (5..=10, "b")]);
 
         assert!(Table::try_new(rows, false).is_err());
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn touching_but_disjoint_ranges_are_fine() {
-        // 1..=5 and 6..=10 share no number — must be accepted.
+        /* 1..=5 and 6..=10 share no number — must be accepted. */
         table(vec![(1..=5, "a"), (6..=10, "b")], false);
     }
 
@@ -173,7 +173,7 @@ mod tests {
         assert_eq!(t.draw(), Some("only".to_string()));
     }
 
-    // -- draw: non-unique ----------------------------------------------------
+    /* -- draw: non-unique ---------------------------------------------------- */
 
     #[test]
     fn non_unique_draw_never_exhausts() {
@@ -192,7 +192,7 @@ mod tests {
         }
     }
 
-    // -- draw: unique ---------------------------------------------------------
+    /* -- draw: unique --------------------------------------------------------- */
 
     #[test]
     fn unique_table_yields_each_item_exactly_once_then_none() {
@@ -209,14 +209,14 @@ mod tests {
         assert_eq!(t.draw(), None);
     }
 
-    // -- boundaries -----------------------------------------------------------
+    /* -- boundaries ----------------------------------------------------------- */
 
     #[test]
     fn zero_based_and_offset_tables_drain_fully() {
-        // min/max derived from data: both conventions must work unchanged
+        /* min/max derived from data: both conventions must work unchanged */
         for entries in [
-            vec![(0..=4, "a"), (5..=9, "b")],     // 0-based
-            vec![(78..=79, "a"), (80..=81, "b")], // offset, d100-style rows
+            vec![(0..=4, "a"), (5..=9, "b")], /* 0-based */
+            vec![(78..=79, "a"), (80..=81, "b")], /* offset, d100-style rows */
         ] {
             let mut t = table(entries, true);
             let mut n = 0;
@@ -230,18 +230,18 @@ mod tests {
 
     #[test]
     fn gapped_table_still_terminates() {
-        // rolls in 11..=89 hit no range; reroll loop must absorb them
+        /* rolls in 11..=89 hit no range; reroll loop must absorb them */
         let mut t = table(vec![(1..=10, "a"), (90..=100, "b")], true);
         assert!(t.draw().is_some());
         assert!(t.draw().is_some());
         assert_eq!(t.draw(), None);
     }
 
-    // -- distribution (statistical) --------------------------------------------
+    /* -- distribution (statistical) -------------------------------------------- */
 
     #[test]
     fn draw_respects_weights_roughly() {
-        // 80/20 split over many draws from a fresh non-unique table
+        /* 80/20 split over many draws from a fresh non-unique table */
         let mut t = table(vec![(1..=80, "common"), (81..=100, "rare")], false);
         let draws = 10_000;
         let commons = (0..draws)

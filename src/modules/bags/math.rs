@@ -8,8 +8,8 @@ mod tests {
 
     #[test]
     fn zero_leaves_the_other_side_untouched() {
-        // Folding a set of weights starts from 0, so this is the identity
-        // case that makes the fold work.
+        /* Folding a set of weights starts from 0, so this is the identity
+           case that makes the fold work. */
         assert_eq!(greatest_common_denominator(0, 7), 7);
         assert_eq!(greatest_common_denominator(7, 0), 7);
     }

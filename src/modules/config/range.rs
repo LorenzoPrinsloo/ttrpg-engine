@@ -2,9 +2,9 @@ use serde::Deserialize;
 use std::fmt;
 use std::ops::RangeInclusive;
 
-/// A row's range as written in the file: `"01-19"`, or `"20"` for a single
-/// number. The spelling is kept so errors can quote what was typed rather
-/// than Rust's `1..=19`.
+/* A row's range as written in the file: `"01-19"`, or `"20"` for a single
+   number. The spelling is kept so errors can quote what was typed rather
+   than Rust's `1..=19`. */
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(try_from = "String")]
 pub struct RowRange {
@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn leading_zeros_and_spaces_are_tolerated() {
-        // d100 rows get copied straight out of a book.
+        /* d100 rows get copied straight out of a book. */
         assert_eq!(parse("01-19").unwrap().span(), 1..=19);
         assert_eq!(parse(" 7 ").unwrap().span(), 7..=7);
     }

@@ -17,8 +17,8 @@ const HELP: &str = "\
 **render** *markup*   preview a markup string
 **quit**              leave, as does ctrl-D";
 
-/// Runs a session over `bags` and `tables`. With `args` it runs them as a
-/// single command and exits; otherwise it prompts until `quit` or end of input.
+/* Runs a session over `bags` and `tables`. With `args` it runs them as a
+   single command and exits; otherwise it prompts until `quit` or end of input. */
 pub fn run(bags: Vec<NamedBag>, tables: Vec<NamedTable>, args: &[String]) {
     let mut session = Session::new(bags, tables);
 
@@ -46,7 +46,7 @@ pub fn run(bags: Vec<NamedBag>, tables: Vec<NamedTable>, args: &[String]) {
                 eprintln!("{error}");
                 break;
             }
-            // ctrl-D: the newline leaves the terminal prompt on its own line.
+            /* ctrl-D: the newline leaves the terminal prompt on its own line. */
             None => {
                 println!();
                 break;
@@ -66,16 +66,16 @@ struct Session {
     tables: Vec<NamedTable>,
 }
 
-/// The one bag or table a name resolved to. Borrowing it here rather than
-/// handing back an index keeps the two lists from being mixed up.
+/* The one bag or table a name resolved to. Borrowing it here rather than
+   handing back an index keeps the two lists from being mixed up. */
 enum Found<'a> {
     Bag(&'a str, &'a mut Bag<Encounter>),
     Table(&'a str, &'a mut Table<Encounter>),
 }
 
 impl Session {
-    /// Names address everything in the session, so a repeated one would leave
-    /// an entry unreachable.
+    /* Names address everything in the session, so a repeated one would leave
+       an entry unreachable. */
     fn new(bags: Vec<NamedBag>, tables: Vec<NamedTable>) -> Self {
         let mut names: Vec<&str> = bags.iter().map(|(name, _)| name.as_str()).collect();
         names.extend(tables.iter().map(|(name, _)| name.as_str()));
@@ -120,7 +120,7 @@ impl Session {
         }
     }
 
-    /// `draw <name> [count]`
+    /* `draw <name> [count]` */
     fn draw(&mut self, rest: &str) {
         let (name, count) = split_count(rest);
 
@@ -131,7 +131,7 @@ impl Session {
         }
     }
 
-    /// `refill [name]`, or everything when no name is given.
+    /* `refill [name]`, or everything when no name is given. */
     fn refill(&mut self, name: &str) {
         if name.is_empty() {
             for (name, bag) in &mut self.bags {
@@ -150,8 +150,8 @@ impl Session {
         }
     }
 
-    /// Borrows the one bag or table `name` addresses, telling the user when
-    /// that is not exactly one of them.
+    /* Borrows the one bag or table `name` addresses, telling the user when
+       that is not exactly one of them. */
     fn resolve(&mut self, name: &str) -> Option<Found<'_>> {
         if name.is_empty() {
             println!("which table? `tables` lists them");
@@ -174,8 +174,8 @@ impl Session {
                 println!("no table called {name:?}, `tables` lists them");
                 None
             }
-            // Several entries share the prefix, or a bag and a table do.
-            // Construction rejects duplicate names, so typing more resolves it.
+            /* Several entries share the prefix, or a bag and a table do.
+               Construction rejects duplicate names, so typing more resolves it. */
             _ => {
                 let matched: Vec<&str> = bags
                     .iter()
@@ -190,8 +190,8 @@ impl Session {
     }
 }
 
-/// Indexes of the entries `name` addresses. An exact name wins outright, so a
-/// name that is also the prefix of another stays reachable.
+/* Indexes of the entries `name` addresses. An exact name wins outright, so a
+   name that is also the prefix of another stays reachable. */
 fn name_matches<S>(entries: &[(String, S)], name: &str) -> Vec<usize> {
     if let Some(index) = entries.iter().position(|(label, _)| label == name) {
         return vec![index];
@@ -216,8 +216,8 @@ fn draw_from<S: Draw<Item = Encounter>>(name: &str, source: &mut S, count: usize
     }
 }
 
-/// `"artifacts 3"` splits into `("artifacts", 3)`; anything without a trailing
-/// number keeps its whole text and draws once.
+/* `"artifacts 3"` splits into `("artifacts", 3)`; anything without a trailing
+   number keeps its whole text and draws once. */
 fn split_count(rest: &str) -> (&str, usize) {
     match rest.rsplit_once(' ') {
         Some((name, count)) => match count.parse() {
@@ -228,7 +228,7 @@ fn split_count(rest: &str) -> (&str, usize) {
     }
 }
 
-/// One line of `tables`, as `  artifacts    100 left  unique`.
+/* One line of `tables`, as `  artifacts    100 left  unique`. */
 fn row<S: Draw>(name: &str, source: &S) -> String {
     let measure = if source.exhausts() { "left" } else { "rows" };
     let unique = if source.unique() { "  unique" } else { "" };
@@ -266,8 +266,8 @@ mod tests {
         Table::try_new(HashMap::from([(1..=10, Encounter::markup("a diver"))]), unique).unwrap()
     }
 
-    /// One bag and two tables, so a table index can land past the end of the
-    /// bag list.
+    /* One bag and two tables, so a table index can land past the end of the
+       bag list. */
     fn session() -> Session {
         Session::new(
             vec![("artifacts".to_string(), bag())],

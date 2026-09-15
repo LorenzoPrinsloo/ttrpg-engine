@@ -15,8 +15,8 @@ fn main() {
         }
     };
 
-    // Only when there is a session to have: a one-shot command should print
-    // nothing but its answer.
+    /* Only when there is a session to have: a one-shot command should print
+       nothing but its answer. */
     if args.is_empty() {
         println!(
             "{} bags and {} tables from {}",

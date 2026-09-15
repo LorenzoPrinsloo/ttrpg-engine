@@ -59,8 +59,8 @@ fn write_nodes(nodes: &[Node], style: Style, out: &mut String) {
 mod tests {
     use super::*;
 
-    /// Tests assert against ANSI output, so colouring must not be turned off
-    /// by the environment `cargo test` happens to run in.
+    /* Tests assert against ANSI output, so colouring must not be turned off
+       by the environment `cargo test` happens to run in. */
     fn render_colored(input: &str) -> String {
         colored::control::set_override(true);
         render(input)
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn dice_inherit_surrounding_styles() {
-        // A d1 always rolls 1, so 3d1 is deterministically 3.
+        /* A d1 always rolls 1, so 3d1 is deterministically 3. */
         assert_eq!(
             render_colored("{red|**[3d1]**}"),
             "3".red().bold().to_string()

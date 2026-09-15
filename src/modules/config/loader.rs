@@ -126,7 +126,7 @@ mod tests {
         )
         .unwrap();
 
-        // 75:25 reduces to 3:1.
+        /* 75:25 reduces to 3:1. */
         assert_eq!(loaded.remaining(), 4);
     }
 
@@ -177,7 +177,7 @@ mod tests {
         let loaded = bag("[[items]]\nratio = 1.0\ntext = '**[3d1] Black Marble(s).**'").unwrap();
         let mut loaded = loaded;
 
-        // Dice roll at render time; d1 keeps it deterministic.
+        /* Dice roll at render time; d1 keeps it deterministic. */
         assert_eq!(loaded.draw().unwrap().resolve(), "3 Black Marble(s).");
     }
 
@@ -201,8 +201,8 @@ mod tests {
 
     #[test]
     fn the_shipped_files_have_no_backslashes() {
-        // Markup owns `\`, so any that appeared would mean TOML escaping had
-        // crept into text that is meant to be literal.
+        /* Markup owns `\`, so any that appeared would mean TOML escaping had
+           crept into text that is meant to be literal. */
         assert!(!ENCOUNTERS_TOML.contains('\\'));
         assert!(!ARTIFACTS_TOML.contains('\\'));
     }
@@ -212,7 +212,7 @@ mod tests {
         let encounters = bag_from_str(Path::new("encounters.toml"), ENCOUNTERS_TOML).unwrap();
         let artifacts = bag_from_str(Path::new("artifacts.toml"), ARTIFACTS_TOML).unwrap();
 
-        // 1:3:3:2:1 after the gcd, and a true d100 table.
+        /* 1:3:3:2:1 after the gcd, and a true d100 table. */
         assert_eq!(encounters.remaining(), 10);
         assert_eq!(artifacts.remaining(), 100);
         assert!(artifacts.unique());

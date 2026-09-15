@@ -6,15 +6,15 @@ use crate::bags::math::greatest_common_denominator;
 pub struct Bag<T> {
     items: Vec<T>,
     distributions: HashMap<T, f64>,
-    // are items in this bag unique (Have only 1 available and should remove the chance of finding one when one is discovered)
+    /* are items in this bag unique (Have only 1 available and should remove the chance of finding one when one is discovered) */
     unique: bool
 }
 
-/// Why a bag could not be built. Carries no entry position: the ratios come
-/// from a map, which has no order to point at. The loader adds the file name.
+/* Why a bag could not be built. Carries no entry position: the ratios come
+   from a map, which has no order to point at. The loader adds the file name. */
 #[derive(Debug, PartialEq)]
 pub enum BagError {
-    /// Ratios are quantised to hundredths, so the sum is carried as percent.
+    /* Ratios are quantised to hundredths, so the sum is carried as percent. */
     Ratios(u32),
     NotARatio(f64),
 }
@@ -37,8 +37,8 @@ impl std::fmt::Display for BagError {
 impl std::error::Error for BagError {}
 
 impl<T: Clone + Eq + std::hash::Hash> Bag<T> {
-    /// Fails rather than panics, because these ratios come from a file the
-    /// user edits by hand.
+    /* Fails rather than panics, because these ratios come from a file the
+       user edits by hand. */
     pub(crate) fn try_new(
         distributions: HashMap<T, f64>,
         unique: bool,
@@ -70,7 +70,7 @@ impl<T: Clone + Eq + std::hash::Hash> Bag<T> {
             })
             .collect();
 
-        // One divisor for the whole bag
+        /* One divisor for the whole bag */
         let divisor = parts.iter()
             .fold(0, |divisor, (_, part)| greatest_common_denominator(divisor, *part))
             .max(1);
@@ -149,7 +149,7 @@ mod tests {
         )
         .unwrap();
 
-        // 50:30:20 reduces to 5:3:2.
+        /* 50:30:20 reduces to 5:3:2. */
         assert_eq!(copies(&bag, "common"), 5);
         assert_eq!(copies(&bag, "uncommon"), 3);
         assert_eq!(copies(&bag, "rare"), 2);
