@@ -8,8 +8,6 @@ pub(crate) fn candidates(cwd: &Path, exe: Option<&Path>) -> Vec<PathBuf> {
     if let Some(dir) = exe.and_then(Path::parent) {
         tried.push(dir.join("tables"));
     }
-    /* Last, and baked in at compile time: cargo does not move the working
-       directory, so without this `cargo run` breaks from a subdirectory. */
     tried.push(PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/tables")));
 
     tried

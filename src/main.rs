@@ -26,5 +26,5 @@ fn main() {
         );
     }
 
-    shell::run(loaded.bags, loaded.tables, &args);
+    shell::run(loaded.bags.into_iter().collect(), loaded.tables.into_iter().collect(), &args);
 }

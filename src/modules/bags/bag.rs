@@ -2,7 +2,14 @@ use std::collections::HashMap;
 use rand::RngExt;
 use crate::modules::draw::Draw;
 use crate::bags::math::greatest_common_denominator;
+use serde::Deserialize;
 
+#[derive(Deserialize)]
+#[serde(
+    try_from = "crate::modules::config::BagFile",
+    bound(deserialize = "Bag<T>: TryFrom<crate::modules::config::BagFile>, \
+        <Bag<T> as TryFrom<crate::modules::config::BagFile>>::Error: std::fmt::Display")
+)]
 pub struct Bag<T> {
     items: Vec<T>,
     distributions: HashMap<T, f64>,
@@ -14,7 +21,7 @@ pub struct Bag<T> {
    from a map, which has no order to point at. The loader adds the file name. */
 #[derive(Debug, PartialEq)]
 pub enum BagError {
-    /* Ratios are quantised to hundredths, so the sum is carried as percent. */
+    /* Ratios are quantized to hundredths, so the sum is carried as percent. */
     Ratios(u32),
     NotARatio(f64),
 }

@@ -1,99 +1,65 @@
+use std::collections::BTreeMap;
 use crate::modules::bags::Bag;
 use crate::modules::config::error::LoadError;
-use crate::modules::config::file::{BagFile, RowsFile};
 use crate::modules::config::paths;
 use crate::modules::encounters::Encounter;
 use crate::modules::tables::Table;
-use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
+use figment::Figment;
+use figment::providers::{Format, Toml};
+use serde::Deserialize;
+use crate::config::provider::Nested;
 
+#[derive(Deserialize)]
 pub struct Tables {
-    pub bags: Vec<(String, Bag<Encounter>)>,
-    pub tables: Vec<(String, Table<Encounter>)>,
+    #[serde(default)]
+    pub bags: BTreeMap<String, Bag<Encounter>>,
+    #[serde(default)]
+    pub tables: BTreeMap<String, Table<Encounter>>,
 }
 
 pub fn load() -> Result<(PathBuf, Tables), Vec<LoadError>> {
-    let root = paths::resolve().map_err(|error| vec![error])?;
+    let root: PathBuf = paths::resolve().map_err(|error| vec![error])?;
 
-    let (bags, mut errors) = load_dir(&root.join("bags"), bag_from_str);
-    let (tables, table_errors) = load_dir(&root.join("tables"), table_from_str);
-    errors.extend(table_errors);
+    let mut figment: Figment = Figment::new();
+    let mut errors: Vec<LoadError> = Vec::new();
+
+    for section in ["bags", "tables"] {
+        for path in toml_files(&root.join(section)) {
+            match name_of(&path) {
+                Ok(name) => {
+                    figment = figment.merge(Nested::new(section, name, Toml::file_exact(path)));
+                }
+                Err(error) => errors.push(error),
+            }
+        }
+    }
 
     if !errors.is_empty() {
         return Err(errors);
     }
 
-    if bags.is_empty() && tables.is_empty() {
+    let tables: Tables = figment
+        .extract()
+        .map_err(|error| error.into_iter().map(LoadError::Config).collect::<Vec<_>>())?;
+
+    if tables.bags.is_empty() && tables.tables.is_empty() {
         return Err(vec![LoadError::NoTables { root }]);
     }
 
-    Ok((root, Tables { bags, tables }))
+    Ok((root, tables))
 }
 
-pub(crate) fn bag_from_str(path: &Path, source: &str) -> Result<Bag<Encounter>, LoadError> {
-    let file: BagFile = parse(path, source)?;
-    let items = file
-        .items
-        .iter()
-        .map(|item| (Encounter::markup(entry_text(&item.text)), item.ratio))
-        .collect();
-
-    Bag::try_new(items, file.unique).map_err(|error| LoadError::Bag { path: path.into(), error })
-}
-
-pub(crate) fn table_from_str(path: &Path, source: &str) -> Result<Table<Encounter>, LoadError> {
-    let file: RowsFile = parse(path, source)?;
-    let rows = file
-        .rows
-        .iter()
-        .map(|row| (row.range.span(), Encounter::markup(entry_text(&row.text))))
-        .collect();
-
-    Table::try_new(rows, file.unique).map_err(|error| LoadError::Table { path: path.into(), error })
-}
-
-fn parse<T: DeserializeOwned>(path: &Path, source: &str) -> Result<T, LoadError> {
-    toml::from_str(source).map_err(|error| LoadError::Syntax { path: path.into(), error })
-}
-
-fn entry_text(raw: &str) -> &str {
-    raw.strip_suffix('\n').unwrap_or(raw)
-}
-
-fn load_dir<T>(
-    dir: &Path,
-    parse: fn(&Path, &str) -> Result<T, LoadError>,
-) -> (Vec<(String, T)>, Vec<LoadError>) {
-    let mut loaded = Vec::new();
-    let mut errors = Vec::new();
-
+fn toml_files(dir: &Path) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else {
-        return (loaded, errors);
+        return Vec::new();
     };
 
-    let mut paths: Vec<PathBuf> = entries
+    entries
         .filter_map(Result::ok)
         .map(|entry| entry.path())
         .filter(|path| path.extension().is_some_and(|extension| extension == "toml"))
-        .collect();
-
-    paths.sort();
-
-    for path in paths {
-        let loading = name_of(&path).and_then(|name| {
-            let source = std::fs::read_to_string(&path)
-                .map_err(|error| LoadError::Unreadable { path: path.clone(), error })?;
-
-            parse(&path, &source).map(|value| (name, value))
-        });
-
-        match loading {
-            Ok(named) => loaded.push(named),
-            Err(error) => errors.push(error),
-        }
-    }
-
-    (loaded, errors)
+        .collect()
 }
 
 fn name_of(path: &Path) -> Result<String, LoadError> {
@@ -111,82 +77,38 @@ mod tests {
     use super::*;
     use crate::modules::draw::Draw;
 
-    fn bag(source: &str) -> Result<Bag<Encounter>, LoadError> {
-        bag_from_str(Path::new("tables/bags/artifacts.toml"), source)
-    }
+    #[test]
+    fn a_syntax_error_reports_the_line() {
+        let error = tables("[[bags.artifacts.items]\nratio = 1.0").err().unwrap().to_string();
 
-    fn table(source: &str) -> Result<Table<Encounter>, LoadError> {
-        table_from_str(Path::new("tables/tables/rumours.toml"), source)
+        assert!(error.contains("line"), "{error}");
     }
 
     #[test]
-    fn a_bag_becomes_items_in_proportion() {
-        let loaded = bag(
-            "[[items]]\nratio = 0.75\ntext = 'common'\n\n[[items]]\nratio = 0.25\ntext = 'rare'",
-        )
-        .unwrap();
+    fn a_broken_file_is_named_in_the_error() {
+        let dir = std::env::temp_dir().join(format!("untitled-loader-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("artifacts.toml");
+        std::fs::write(&path, "[[items]]\nratio = 0.97\ntext = 'x'").unwrap();
 
-        /* 75:25 reduces to 3:1. */
-        assert_eq!(loaded.remaining(), 4);
-    }
-
-    #[test]
-    fn a_table_keeps_one_row_per_entry() {
-        let loaded = table(
-            "[[rows]]\nrange = '01-19'\ntext = 'static'\n\n[[rows]]\nrange = '20'\ntext = 'patrol'",
-        )
-        .unwrap();
-
-        assert_eq!(loaded.remaining(), 2);
-    }
-
-    #[test]
-    fn unique_carries_through() {
-        let loaded = bag("unique = true\n\n[[items]]\nratio = 1.0\ntext = 'relic'").unwrap();
-
-        assert!(loaded.unique());
-    }
-
-    #[test]
-    fn ratios_that_do_not_add_up_name_the_file_and_the_sum() {
-        let error = bag("[[items]]\nratio = 0.97\ntext = 'x'").err().unwrap().to_string();
+        let error = Figment::from(Nested::new("bags", "artifacts", Toml::file_exact(&path)))
+            .extract::<Tables>()
+            .err()
+            .unwrap()
+            .to_string();
+        std::fs::remove_dir_all(&dir).ok();
 
         assert!(error.contains("artifacts.toml"), "{error}");
         assert!(error.contains("0.97"), "{error}");
     }
 
     #[test]
-    fn overlapping_rows_name_the_file() {
-        let source = "[[rows]]\nrange = '1-10'\ntext = 'a'\n\n[[rows]]\nrange = '5-15'\ntext = 'b'";
-        let error = table(source).err().unwrap().to_string();
-
-        assert!(error.contains("rumours.toml"), "{error}");
-        assert!(error.contains("overlap"), "{error}");
-    }
-
-    #[test]
-    fn a_syntax_error_names_the_file_and_the_line() {
-        let error = bag("[[items]\nratio = 1.0").err().unwrap().to_string();
-
-        assert!(error.contains("artifacts.toml"), "{error}");
-        assert!(error.contains("line"), "{error}");
-    }
-
-    #[test]
-    fn markup_in_an_entry_is_parsed_not_stored_raw() {
-        let loaded = bag("[[items]]\nratio = 1.0\ntext = '**[3d1] Black Marble(s).**'").unwrap();
-        let mut loaded = loaded;
-
-        /* Dice roll at render time; d1 keeps it deterministic. */
-        assert_eq!(loaded.draw().unwrap().resolve(), "3 Black Marble(s).");
-    }
-
-    #[test]
     fn an_embedded_newline_survives_but_a_trailing_one_does_not() {
-        let source = "[[items]]\nratio = 1.0\ntext = '''\nfirst\nsecond\n'''";
-        let mut loaded = bag(source).unwrap();
+        let mut loaded =
+            tables("[[bags.notes.items]]\nratio = 1.0\ntext = '''\nfirst\nsecond\n'''").unwrap();
+        let drawn = loaded.bags.get_mut("notes").unwrap().draw().unwrap();
 
-        assert_eq!(loaded.draw().unwrap().resolve(), "first\nsecond");
+        assert_eq!(drawn.resolve(), "first\nsecond");
     }
 
     #[test]
@@ -209,20 +131,125 @@ mod tests {
 
     #[test]
     fn the_shipped_bags_keep_their_shape() {
-        let encounters = bag_from_str(Path::new("encounters.toml"), ENCOUNTERS_TOML).unwrap();
-        let artifacts = bag_from_str(Path::new("artifacts.toml"), ARTIFACTS_TOML).unwrap();
+        let loaded: Tables = Figment::new()
+            .merge(Nested::new("bags", "encounters", Toml::string(ENCOUNTERS_TOML)))
+            .merge(Nested::new("bags", "artifacts", Toml::string(ARTIFACTS_TOML)))
+            .extract()
+            .unwrap();
 
         /* 1:3:3:2:1 after the gcd, and a true d100 table. */
-        assert_eq!(encounters.remaining(), 10);
-        assert_eq!(artifacts.remaining(), 100);
-        assert!(artifacts.unique());
+        assert_eq!(loaded.bags["encounters"].remaining(), 10);
+        assert_eq!(loaded.bags["artifacts"].remaining(), 100);
+        assert!(loaded.bags["artifacts"].unique());
     }
 
     #[test]
-    fn a_missing_directory_is_not_an_error_on_its_own() {
-        let (loaded, errors) = load_dir(Path::new("/nonexistent/bags"), bag_from_str);
+    fn a_missing_directory_holds_no_files() {
+        assert!(toml_files(Path::new("/nonexistent/bags")).is_empty());
+    }
 
-        assert!(loaded.is_empty());
-        assert!(errors.is_empty());
+    /* -- Tables through figment ---------------------------------------------- */
+
+    /* The nested shape the per-file providers merge into: every file's contents
+       under `bags.<name>` or `tables.<name>`. */
+    fn tables(source: &str) -> Result<Tables, figment::Error> {
+        Figment::from(Toml::string(source)).extract()
+    }
+
+    #[test]
+    fn named_bags_and_tables_land_under_their_names() {
+        let loaded = tables(
+            "[bags.artifacts]\nunique = true\n\
+             [[bags.artifacts.items]]\nratio = 1.0\ntext = 'relic'\n\
+             [bags.encounters]\n\
+             [[bags.encounters.items]]\nratio = 0.75\ntext = 'common'\n\
+             [[bags.encounters.items]]\nratio = 0.25\ntext = 'rare'\n\
+             [tables.rumours]\n\
+             [[tables.rumours.rows]]\nrange = '01-19'\ntext = 'static'\n\
+             [[tables.rumours.rows]]\nrange = '20'\ntext = 'patrol'",
+        )
+        .unwrap();
+
+        assert_eq!(loaded.bags.keys().collect::<Vec<_>>(), ["artifacts", "encounters"]);
+        assert_eq!(loaded.tables.keys().collect::<Vec<_>>(), ["rumours"]);
+
+        /* Reaching try_new shows up as the ratios reduced and `unique` kept. */
+        assert!(loaded.bags["artifacts"].unique());
+        assert_eq!(loaded.bags["encounters"].remaining(), 4);
+        assert_eq!(loaded.tables["rumours"].remaining(), 2);
+    }
+
+    #[test]
+    fn a_missing_section_is_empty() {
+        let loaded = tables("[[bags.artifacts.items]]\nratio = 1.0\ntext = 'relic'").unwrap();
+
+        assert_eq!(loaded.bags.len(), 1);
+        assert!(loaded.tables.is_empty());
+    }
+
+    #[test]
+    fn nothing_at_all_is_two_empty_sections() {
+        let loaded = tables("").unwrap();
+
+        assert!(loaded.bags.is_empty());
+        assert!(loaded.tables.is_empty());
+    }
+
+    #[test]
+    fn bag_validation_runs_during_extraction() {
+        let error = tables("[[bags.artifacts.items]]\nratio = 0.97\ntext = 'x'")
+            .err()
+            .unwrap()
+            .to_string();
+
+        assert!(error.contains("0.97"), "{error}");
+        assert!(error.contains("bags.artifacts"), "{error}");
+    }
+
+    #[test]
+    fn table_validation_runs_during_extraction() {
+        let error = tables(
+            "[[tables.rumours.rows]]\nrange = '1-10'\ntext = 'a'\n\
+             [[tables.rumours.rows]]\nrange = '5-15'\ntext = 'b'",
+        )
+        .err()
+        .unwrap()
+        .to_string();
+
+        assert!(error.contains("overlap"), "{error}");
+        assert!(error.contains("tables.rumours"), "{error}");
+    }
+
+    #[test]
+    fn a_bad_range_is_reported_under_its_table() {
+        let error = tables("[[tables.rumours.rows]]\nrange = '19-1'\ntext = 'x'")
+            .err()
+            .unwrap()
+            .to_string();
+
+        assert!(error.contains("backwards"), "{error}");
+        assert!(error.contains("tables.rumours"), "{error}");
+    }
+
+    #[test]
+    fn a_misspelled_key_in_an_entry_is_rejected() {
+        let error = tables("[[bags.artifacts.items]]\nratoi = 1.0\ntext = 'x'")
+            .err()
+            .unwrap()
+            .to_string();
+
+        assert!(error.contains("ratoi"), "{error}");
+    }
+
+    #[test]
+    fn entry_text_is_parsed_as_markup() {
+        let mut loaded = tables(
+            "[[bags.artifacts.items]]\nratio = 1.0\ntext = '''\n**[3d1] Black Marble(s).**\n'''",
+        )
+        .unwrap();
+
+        /* d1 keeps the roll deterministic; the trailing newline is trimmed. */
+        let drawn = loaded.bags.get_mut("artifacts").unwrap().draw().unwrap();
+        assert_eq!(drawn.resolve(), "3 Black Marble(s).");
     }
 }

@@ -7,4 +7,4 @@ edition = "2024"
 rand = "0.10.2"
 colored = "3.1.1"
 serde = { version = "1.0.229", features = ["derive"] }
-toml = "1.1.6"
+figment = { version = "0.10.19", features = ["toml"] }

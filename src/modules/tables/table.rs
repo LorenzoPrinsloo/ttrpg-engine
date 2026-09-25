@@ -1,8 +1,15 @@
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use rand::RngExt;
+use serde::Deserialize;
 use crate::modules::draw::Draw;
 
+#[derive(Deserialize)]
+#[serde(
+    try_from = "crate::modules::config::RowsFile",
+    bound(deserialize = "Table<T>: TryFrom<crate::modules::config::RowsFile>, \
+        <Table<T> as TryFrom<crate::modules::config::RowsFile>>::Error: std::fmt::Display")
+)]
 pub struct Table<T> {
     items: HashMap<RangeInclusive<u32>, Item<T>>,
     max: u32,
