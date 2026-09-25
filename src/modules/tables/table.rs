@@ -3,12 +3,14 @@ use std::ops::RangeInclusive;
 use rand::RngExt;
 use serde::Deserialize;
 use crate::modules::draw::Draw;
+use crate::modules::config::RowsFile;
+use std::fmt::Display;
 
 #[derive(Deserialize)]
 #[serde(
-    try_from = "crate::modules::config::RowsFile",
-    bound(deserialize = "Table<T>: TryFrom<crate::modules::config::RowsFile>, \
-        <Table<T> as TryFrom<crate::modules::config::RowsFile>>::Error: std::fmt::Display")
+    try_from = "RowsFile",
+    bound(deserialize = "Table<T>: TryFrom<RowsFile>, \
+        <Table<T> as TryFrom<RowsFile>>::Error: Display")
 )]
 pub struct Table<T> {
     items: HashMap<RangeInclusive<u32>, Item<T>>,
