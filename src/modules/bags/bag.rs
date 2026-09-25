@@ -3,12 +3,14 @@ use rand::RngExt;
 use crate::modules::draw::Draw;
 use crate::bags::math::greatest_common_denominator;
 use serde::Deserialize;
+use crate::modules::config::BagFile;
+use std::fmt::Display;
 
 #[derive(Deserialize)]
 #[serde(
-    try_from = "crate::modules::config::BagFile",
-    bound(deserialize = "Bag<T>: TryFrom<crate::modules::config::BagFile>, \
-        <Bag<T> as TryFrom<crate::modules::config::BagFile>>::Error: std::fmt::Display")
+    try_from = "BagFile",
+    bound(deserialize = "Bag<T>: TryFrom<BagFile>, \
+        <Bag<T> as TryFrom<BagFile>>::Error: Display")
 )]
 pub struct Bag<T> {
     items: Vec<T>,
