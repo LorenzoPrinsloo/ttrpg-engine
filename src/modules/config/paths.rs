@@ -4,11 +4,18 @@ use std::path::{Path, PathBuf};
 /* Where to look for the tables directory, in order. Pure, so the order can be
    tested without touching the filesystem. */
 pub(crate) fn candidates(cwd: &Path, exe: Option<&Path>) -> Vec<PathBuf> {
-    let mut tried = vec![cwd.join("tables")];
+    const CONF_ROOT: &str = "config";
+
+    // look in  working directory
+    let mut tried = vec![cwd.join(CONF_ROOT)];
+
+    // look in binary's directory
     if let Some(dir) = exe.and_then(Path::parent) {
-        tried.push(dir.join("tables"));
+        tried.push(dir.join(CONF_ROOT));
     }
-    tried.push(PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/tables")));
+
+    // look in CARGO_MANIFEST_DIR directory
+    tried.push(Path::new(env!("CARGO_MANIFEST_DIR")).join(CONF_ROOT));
 
     tried
 }
@@ -54,15 +61,15 @@ mod tests {
     fn the_working_directory_is_searched_before_the_binary() {
         let tried = candidates(Path::new("/work"), Some(Path::new("/bin/untitled")));
 
-        assert_eq!(names(&tried)[..2], ["/work/tables", "/bin/tables"]);
+        assert_eq!(names(&tried)[..2], ["/work/config", "/bin/config"]);
     }
 
     #[test]
     fn a_source_directory_called_tables_is_not_a_tables_directory() {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
 
-        assert!(looks_like_tables(&manifest.join("tables")));
-        assert!(!looks_like_tables(&manifest.join("src/modules/tables")));
+        assert!(looks_like_tables(&manifest.join("config")));
+        assert!(!looks_like_tables(&manifest.join("src/modules/config")));
     }
 
     #[test]
@@ -70,6 +77,6 @@ mod tests {
         let tried = candidates(Path::new("/work"), None);
 
         assert_eq!(tried.len(), 2);
-        assert!(tried.last().unwrap().ends_with("tables"));
+        assert!(tried.last().unwrap().ends_with("config"));
     }
 }

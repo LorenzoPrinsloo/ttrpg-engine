@@ -113,13 +113,13 @@ mod tests {
 
     #[test]
     fn a_name_with_a_space_is_rejected() {
-        let error = name_of(Path::new("tables/bags/loot table.toml")).err().unwrap();
+        let error = name_of(Path::new("config/bags/loot table.toml")).err().unwrap();
 
         assert!(error.to_string().contains("cannot be empty or contain spaces"));
     }
 
-    const ENCOUNTERS_TOML: &str = include_str!("../../../tables/bags/encounters.toml");
-    const ARTIFACTS_TOML: &str = include_str!("../../../tables/bags/artifacts.toml");
+    const ENCOUNTERS_TOML: &str = include_str!("../../../config/bags/encounters.toml");
+    const ARTIFACTS_TOML: &str = include_str!("../../../config/bags/artifacts.toml");
 
     #[test]
     fn the_shipped_files_have_no_backslashes() {
@@ -248,8 +248,11 @@ mod tests {
         )
         .unwrap();
 
-        /* d1 keeps the roll deterministic; the trailing newline is trimmed. */
+        /* Compared as parsed markup rather than rendered text: rendering depends
+           on `colored`'s global switch, which the render tests turn on while
+           this one may be running. Equal to the untrimmed text's parse means
+           the trailing newline is gone too. */
         let drawn = loaded.bags.get_mut("artifacts").unwrap().draw().unwrap();
-        assert_eq!(drawn.resolve(), "3 Black Marble(s).");
+        assert_eq!(drawn, Encounter::markup("**[3d1] Black Marble(s).**"));
     }
 }
