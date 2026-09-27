@@ -29,26 +29,41 @@ impl TryFrom<BagFile> for Bag<Encounter> {
             );
 
         let item_ratios: HashMap<Encounter, f64> = items.clone().map(|( v, r)| (v,r.0)).collect();
-        /* Some only when every entry states its count (a save file); config
-           files state none, so they get None and a full bag. */
-        let items_remaining: Option<HashMap<Encounter, usize>> = items.map(|( v, r)| r.1.map(|n| (v, n))).collect();
 
-        Bag::try_new(item_ratios,  items_remaining, file.unique)
+        /* The full bag is what a config file gets, and it supplies the count
+           for any entry whose `remaining` is left out. */
+        let full = Bag::try_new(item_ratios.clone(), None, file.unique)?;
+        if file.items.iter().all(|item| item.remaining.is_none()) {
+            return Ok(full);
+        }
+
+        let items_remaining: HashMap<Encounter, usize> = items
+            .map(|( v, r)| {
+                let left = r.1.unwrap_or_else(|| full.items.iter().filter(|e| **e == v).count());
+                (v, left)
+            })
+            .collect();
+
+        Bag::try_new(item_ratios, Some(items_remaining), file.unique)
     }
 }
 
 impl From<Bag<Encounter>> for BagFile {
     fn from(bag: Bag<Encounter>) -> Self {
-        Self {
-            unique: bag.unique(),
-            items: bag.distributions.into_iter().map(|(item, rat)|
-                ItemEntry {
-                    ratio: rat,
-                    text: item.raw_text.clone(),
-                    remaining: Some(bag.items.iter().filter(|e| **e == item).count())
-                }
-            ).collect(),
-        }
+        let unique = bag.unique();
+        let mut items: Vec<ItemEntry> = bag.distributions.into_iter().map(|(item, rat)|
+            ItemEntry {
+                ratio: rat,
+                text: item.raw_text.clone(),
+                remaining: Some(bag.items.iter().filter(|e| **e == item).count())
+            }
+        ).collect();
+
+        /* HashMap order changes from run to run; sorted, an unchanged bag
+           saves the same file every time. */
+        items.sort_by(|a, b| a.text.cmp(&b.text));
+
+        Self { unique, items }
     }
 }
 
@@ -83,17 +98,20 @@ impl TryFrom<RowsFile> for Table<Encounter> {
 
 impl From<Table<Encounter>> for RowsFile {
     fn from(value: Table<Encounter>) -> Self {
-        Self {
-            unique: value.unique(),
-            rows: value.items.into_iter()
-                .map(|(range, item)|
-                    RowEntry {
-                        range: range.into(),
-                        text: item.value.raw_text,
-                        used: Some(!item.available)
-                    }
-                ).collect()
-        }
+        let unique = value.unique();
+        let mut rows: Vec<RowEntry> = value.items.into_iter()
+            .map(|(range, item)|
+                RowEntry {
+                    range: range.into(),
+                    text: item.value.raw_text,
+                    used: Some(!item.available)
+                }
+            ).collect();
+
+        /* In range order, as the table reads in a book. */
+        rows.sort_by_key(|row| *row.range.span().start());
+
+        Self { unique, rows }
     }
 }
 
@@ -204,5 +222,49 @@ mod tests {
 
         assert!(error.contains("backwards"), "{error}");
         assert!(error.contains("rows.0.range"), "{error}");
+    }
+
+    #[test]
+    fn an_entry_without_a_count_starts_full() {
+        /* 0.75:0.25 is 3:1 copies. `common` is drawn down to 1, `rare` states
+           nothing and keeps its 1. */
+        let file: BagFile = parse(
+            "[[items]]\nratio = 0.75\ntext = 'common'\nremaining = 1\n\
+             [[items]]\nratio = 0.25\ntext = 'rare'",
+        )
+        .unwrap();
+
+        let bag = Bag::try_from(file).unwrap();
+
+        assert_eq!(bag.remaining(), 2);
+    }
+
+    #[test]
+    fn saved_entries_come_out_in_a_fixed_order() {
+        let bag = Bag::try_new(
+            HashMap::from([
+                (Encounter::markup("c"), 0.5),
+                (Encounter::markup("a"), 0.25),
+                (Encounter::markup("b"), 0.25),
+            ]),
+            None,
+            false,
+        )
+        .unwrap();
+        let table = Table::try_new(
+            HashMap::from([
+                (20..=20, (Encounter::markup("z"), false)),
+                (1..=9, (Encounter::markup("y"), false)),
+                (10..=19, (Encounter::markup("x"), false)),
+            ]),
+            false,
+        )
+        .unwrap();
+
+        let texts: Vec<String> = BagFile::from(bag).items.into_iter().map(|item| item.text).collect();
+        let ranges: Vec<String> = RowsFile::from(table).rows.iter().map(|row| row.range.to_string()).collect();
+
+        assert_eq!(texts, ["a", "b", "c"]);
+        assert_eq!(ranges, ["1-9", "10-19", "20"]);
     }
 }
