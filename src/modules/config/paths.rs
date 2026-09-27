@@ -7,7 +7,7 @@ pub(crate) fn candidates(cwd: &Path, exe: Option<&Path>) -> Vec<PathBuf> {
     const CONF_ROOT: &str = "config";
 
     // look in  working directory
-    let mut tried = vec![cwd.join(CONF_ROOT)];
+    let mut tried: Vec<PathBuf> = vec![cwd.join(CONF_ROOT)];
 
     // look in binary's directory
     if let Some(dir) = exe.and_then(Path::parent) {

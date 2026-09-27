@@ -1,7 +1,6 @@
-use serde::Deserialize;
 use crate::encounters::Dice;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct Die {
     pub n: u32,
     pub sides: u32,

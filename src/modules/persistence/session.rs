@@ -14,6 +14,12 @@ pub(crate) struct SessionFile {
     pub(crate) tables: BTreeMap<String, Table<Encounter>>,
 }
 
+impl SessionFile {
+    /* The newest format this build reads. A file saying more came from a
+       newer build, and may hold fields this one would drop on the next save. */
+    pub(crate) const VERSION: u32 = 1;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -21,7 +27,7 @@ mod tests {
     use std::collections::{BTreeSet, HashMap};
 
     fn session() -> SessionFile {
-        let bag = Bag::try_new(
+        let bag: Bag<Encounter> = Bag::try_new(
             HashMap::from([
                 (Encounter::markup("**common**"), 0.75),
                 (Encounter::markup("rare"), 0.25),
@@ -31,7 +37,7 @@ mod tests {
         )
         .unwrap();
 
-        let table = Table::try_new(
+        let table: Table<Encounter> = Table::try_new(
             HashMap::from([
                 (1..=19, (Encounter::markup("static"), false)),
                 (20..=20, (Encounter::markup("*patrol*"), false)),
