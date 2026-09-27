@@ -10,6 +10,7 @@ pub enum Data {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Encounter {
     pub data: Data,
+    pub(crate) raw_text: String
 }
 
 impl Display for Encounter {
@@ -20,7 +21,7 @@ impl Display for Encounter {
 
 impl Encounter {
     pub fn markup(expr: &str) -> Self {
-        Self { data: Data::Markup(parse(expr)) }
+        Self { data: Data::Markup(parse(expr)), raw_text: expr.to_string() }
     }
 
     pub fn resolve(&self) -> String {

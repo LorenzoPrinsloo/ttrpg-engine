@@ -1,15 +1,24 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::RangeInclusive;
 
 /* A row's range as written in the file: `"01-19"`, or `"20"` for a single
    number. The spelling is kept so errors can quote what was typed rather
    than Rust's `1..=19`. */
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(try_from = "String")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(
+    try_from = "String",
+    into = "String",
+)]
 pub struct RowRange {
     raw: String,
     span: RangeInclusive<u32>,
+}
+
+impl From<RowRange> for String {
+    fn from(row_range: RowRange) -> Self {
+        row_range.raw
+    }
 }
 
 impl RowRange {
@@ -39,6 +48,17 @@ impl TryFrom<String> for RowRange {
         }
 
         Ok(Self { raw, span })
+    }
+}
+
+impl From<RangeInclusive<u32>> for RowRange {
+    fn from(span: RangeInclusive<u32>) -> Self {
+        let raw = match span.start() == span.end() {
+            true => span.start().to_string(),
+            false => format!("{}-{}", span.start(), span.end()),
+        };
+
+        Self { raw, span }
     }
 }
 

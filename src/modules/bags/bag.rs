@@ -2,19 +2,23 @@ use std::collections::HashMap;
 use rand::RngExt;
 use crate::modules::draw::Draw;
 use crate::bags::math::greatest_common_denominator;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use crate::modules::config::BagFile;
 use std::fmt::Display;
 
-#[derive(Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(
     try_from = "BagFile",
-    bound(deserialize = "Bag<T>: TryFrom<BagFile>, \
-        <Bag<T> as TryFrom<BagFile>>::Error: Display")
+    into = "BagFile",
+    bound(
+        deserialize = "Bag<T>: TryFrom<BagFile>, \
+        <Bag<T> as TryFrom<BagFile>>::Error: Display",
+        serialize = "Bag<T>:  Clone + Into<BagFile>"
+    )
 )]
 pub struct Bag<T> {
-    items: Vec<T>,
-    distributions: HashMap<T, f64>,
+    pub(crate) items: Vec<T>,
+    pub(crate) distributions: HashMap<T, f64>,
     /* are items in this bag unique (Have only 1 available and should remove the chance of finding one when one is discovered) */
     unique: bool
 }
@@ -50,6 +54,7 @@ impl<T: Clone + Eq + std::hash::Hash> Bag<T> {
        user edits by hand. */
     pub(crate) fn try_new(
         distributions: HashMap<T, f64>,
+        maybe_remaining_items: Option<HashMap<T, usize>>,
         unique: bool,
     ) -> Result<Self, BagError> {
         let mut percent = 0;
@@ -64,11 +69,26 @@ impl<T: Clone + Eq + std::hash::Hash> Bag<T> {
             return Err(BagError::Ratios(percent));
         }
 
+        let items: Vec<T> = match maybe_remaining_items {
+            Some(remaining_items) => {
+                Self::load_items_from_remaining(&remaining_items)
+            }
+            None => {
+                Self::starting_items(&distributions)
+            }
+        };
+
         Ok(Self {
-            items: Self::starting_items(&distributions),
+            items,
             distributions,
             unique,
         })
+    }
+
+    fn load_items_from_remaining(remaining: &HashMap<T, usize>) -> Vec<T> {
+        remaining.iter()
+            .flat_map(|(t, &v)| std::iter::repeat_n(t.clone(), v))
+            .collect()
     }
 
     fn starting_items(distributions: &HashMap<T, f64>) -> Vec<T> {
@@ -136,7 +156,7 @@ mod tests {
 
     #[test]
     fn ratios_that_do_not_add_up_are_reported() {
-        let error = Bag::try_new(HashMap::from([("common", 0.5), ("rare", 0.3)]), false)
+        let error = Bag::try_new(HashMap::from([("common", 0.5), ("rare", 0.3)]), None, false)
             .err().unwrap();
 
         assert_eq!(error, BagError::Ratios(80));
@@ -145,7 +165,7 @@ mod tests {
 
     #[test]
     fn a_ratio_outside_zero_to_one_is_reported() {
-        let error = Bag::try_new(HashMap::from([("impossible", 1.5)]), false).err().unwrap();
+        let error = Bag::try_new(HashMap::from([("impossible", 1.5)]), None, false).err().unwrap();
 
         assert_eq!(error, BagError::NotARatio(1.5));
     }
@@ -154,6 +174,7 @@ mod tests {
     fn copies_are_proportional_to_the_ratios() {
         let bag = Bag::try_new(
             HashMap::from([("common", 0.5), ("uncommon", 0.3), ("rare", 0.2)]),
+            None,
             false,
         )
         .unwrap();
@@ -168,6 +189,7 @@ mod tests {
     fn a_likelier_item_is_never_outnumbered_by_a_rarer_one() {
         let bag = Bag::try_new(
             HashMap::from([("common", 0.5), ("uncommon", 0.3), ("rare", 0.2)]),
+            None,
             false,
         )
         .unwrap();

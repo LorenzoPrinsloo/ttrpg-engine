@@ -259,11 +259,11 @@ mod tests {
     use std::collections::HashMap;
 
     fn bag() -> Bag<Encounter> {
-        Bag::try_new(HashMap::from([(Encounter::markup("relic"), 1.0)]), false).unwrap()
+        Bag::try_new(HashMap::from([(Encounter::markup("relic"), 1.0)]), None, false).unwrap()
     }
 
     fn table(unique: bool) -> Table<Encounter> {
-        Table::try_new(HashMap::from([(1..=10, Encounter::markup("a diver"))]), unique).unwrap()
+        Table::try_new(HashMap::from([(1..=10, (Encounter::markup("a diver"), false))]), unique).unwrap()
     }
 
     /* One bag and two tables, so a table index can land past the end of the

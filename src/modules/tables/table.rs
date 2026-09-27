@@ -1,28 +1,33 @@
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use rand::RngExt;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use crate::modules::draw::Draw;
 use crate::modules::config::RowsFile;
 use std::fmt::Display;
 
-#[derive(Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(
     try_from = "RowsFile",
-    bound(deserialize = "Table<T>: TryFrom<RowsFile>, \
-        <Table<T> as TryFrom<RowsFile>>::Error: Display")
+    into = "RowsFile",
+    bound(
+        deserialize = "Table<T>: TryFrom<RowsFile>, \
+        <Table<T> as TryFrom<RowsFile>>::Error: Display",
+        serialize = "Table<T>:  Clone + Into<RowsFile>"
+    )
 )]
 pub struct Table<T> {
-    items: HashMap<RangeInclusive<u32>, Item<T>>,
+    pub(crate) items: HashMap<RangeInclusive<u32>, Item<T>>,
     max: u32,
     min: u32,
     /* are items in this bag unique (Have only 1 available and should remove the chance of finding one when one is discovered) */
     unique: bool
 }
 
+#[derive(Clone)]
 pub struct Item<T> {
-    value: T,
-    available: bool
+    pub(crate) value: T,
+    pub(crate) available: bool
 }
 
 impl<T> Item<T> {
@@ -55,7 +60,7 @@ impl<T: Clone + Eq + std::hash::Hash> Table<T> {
     /* Fails rather than panics, because these rows come from a file the user
        edits by hand. */
     pub(crate) fn try_new(
-        distributions: HashMap<RangeInclusive<u32>, T>,
+        distributions: HashMap<RangeInclusive<u32>, (T, bool)>,
         unique: bool,
     ) -> Result<Self, TableError> {
         if let Some((earlier, later)) = Self::find_overlap(distributions.keys().collect()) {
@@ -67,7 +72,7 @@ impl<T: Clone + Eq + std::hash::Hash> Table<T> {
 
         Ok(Table {
             items: distributions.into_iter()
-                .map(|(k, v)| (k, Item::new(v, true)))
+                .map(|(k, (v, used))| (k, Item::new(v, !used)))
                 .collect(),
             max,
             min,
@@ -136,7 +141,7 @@ mod tests {
 
     fn table(entries: Vec<(RangeInclusive<u32>, &str)>, unique: bool) -> Table<String> {
         Table::try_new(
-            entries.into_iter().map(|(r, s)| (r, s.to_string())).collect(),
+            entries.into_iter().map(|(r, s)| (r, (s.to_string(), false))).collect(),
             unique,
         )
         .unwrap()
@@ -148,14 +153,14 @@ mod tests {
     fn adjacent_inclusive_ranges_overlap() {
         /* 5 is in BOTH 1..=5 and 5..=10 — must be rejected.
            Passes with `<` in find_overlap; requires `<=` for RangeInclusive. */
-        let rows = HashMap::from([(1..=5, "a"), (5..=10, "b")]);
+        let rows = HashMap::from([(1..=5, ("a", false)), (5..=10, ("b", false))]);
 
         assert!(Table::try_new(rows, false).is_err());
     }
 
     #[test]
     fn overlapping_rows_name_both_ranges() {
-        let error = Table::try_new(HashMap::from([(1..=10, "a"), (5..=15, "b")]), false)
+        let error = Table::try_new(HashMap::from([(1..=10, ("a", false)), (5..=15, ("b", false))]), false)
             .err().unwrap();
         let message = error.to_string();
 

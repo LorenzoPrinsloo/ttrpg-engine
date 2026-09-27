@@ -5,3 +5,4 @@ pub mod encounters;
 pub mod markup;
 pub mod shell;
 pub mod tables;
+pub mod persistence;
