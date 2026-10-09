@@ -28,6 +28,7 @@ fn main() {
     /* A session that is there but will not load stops the start: carrying on
        with full tables would overwrite it on the first draw. */
     let store = SessionStore::locate().unwrap_or_else(|error| fail(error));
+    let original = loaded.clone();
     match store.load(&name) {
         Ok(Some(saved)) => {
             for note in saved.restore(&mut loaded) {
@@ -53,6 +54,7 @@ fn main() {
     shell::run(
         loaded.bags.into_iter().collect(),
         loaded.tables.into_iter().collect(),
+        original,
         &args,
         |bags, tables| {
             /* Reported but not fatal: the game in front of the user is still

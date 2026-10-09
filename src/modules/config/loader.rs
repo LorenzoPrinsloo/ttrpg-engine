@@ -11,7 +11,7 @@ use serde::Deserialize;
 use crate::config::provider::Nested;
 use crate::modules::config::hash;
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Tables {
     #[serde(default)]
     pub bags: BTreeMap<String, Bag<Encounter>>,

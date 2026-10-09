@@ -1,4 +1,5 @@
 use crate::modules::bags::Bag;
+use crate::modules::config::Tables;
 use crate::modules::draw::Draw;
 use crate::modules::encounters::Encounter;
 use crate::modules::markup::{self, DiceExpr};
@@ -13,19 +14,22 @@ const HELP: &str = "\
 **tables**            the tables loaded and how much is left in each
 **draw** *table* [n]  draw n items, default 1; table names can be abbreviated
 **refill** [*table*]  put everything back, every table if none is named
+**reset** [*table*]   back to how its file has it, every table if none is named
 **roll** *2d6+3*      roll a dice expression
 **render** *markup*   preview a markup string
 **quit**              leave, as does ctrl-D";
 
 /* Runs a session over `bags` and `tables`. With `args` it runs them as a
    single command and exits; otherwise it prompts until `quit` or end of input.
-   `save` is handed the bags and tables after every command that drew or
-   refilled, so quitting any way at all loses nothing. */
-pub fn run<F>(bags: Vec<NamedBag>, tables: Vec<NamedTable>, args: &[String], mut save: F)
+   `original` is the config as its files have it, before any saved session
+   was laid over it, for `reset` to go back to. `save` is handed the bags and
+   tables after every command that changed them, so quitting any way at all
+   loses nothing. */
+pub fn run<F>(bags: Vec<NamedBag>, tables: Vec<NamedTable>, original: Tables, args: &[String], mut save: F)
 where
     F: FnMut(&[NamedBag], &[NamedTable]),
 {
-    let mut session = Session::new(bags, tables);
+    let mut session = Session::new(bags, tables, original);
 
     if !args.is_empty() {
         session.command(&args.join(" "));
@@ -73,7 +77,8 @@ enum Flow {
 struct Session {
     bags: Vec<NamedBag>,
     tables: Vec<NamedTable>,
-    /* Whether a draw or refill reached anything since the last save. */
+    original: Tables,
+    /* Whether a draw, refill or reset reached anything since the last save. */
     changed: bool,
 }
 
@@ -87,7 +92,7 @@ enum Found<'a> {
 impl Session {
     /* Names address everything in the session, so a repeated one would leave
        an entry unreachable. */
-    fn new(bags: Vec<NamedBag>, tables: Vec<NamedTable>) -> Self {
+    fn new(bags: Vec<NamedBag>, tables: Vec<NamedTable>, original: Tables) -> Self {
         let mut names: Vec<&str> = bags.iter().map(|(name, _)| name.as_str()).collect();
         names.extend(tables.iter().map(|(name, _)| name.as_str()));
         names.sort_unstable();
@@ -96,7 +101,7 @@ impl Session {
             panic!("two tables are called {:?}, names have to be unique", pair[0]);
         }
 
-        Session { bags, tables, changed: false }
+        Session { bags, tables, original, changed: false }
     }
 
     fn save_if_changed(&mut self, save: &mut impl FnMut(&[NamedBag], &[NamedTable])) {
@@ -116,6 +121,7 @@ impl Session {
             "tables" | "ls" => self.list(),
             "draw" | "d" => self.draw(rest),
             "refill" => self.refill(rest),
+            "reset" => self.reset(rest),
             "roll" => roll(rest),
             "render" => println!("{}", markup::render(rest)),
             "quit" | "exit" | "q" => return Flow::Quit,
@@ -168,6 +174,37 @@ impl Session {
             None => return,
         }
         self.changed = true;
+    }
+
+    /* `reset [name]`, or everything when no name is given. Unlike `refill`,
+       which puts every entry back, this goes back to the file: one that
+       starts with `remaining` or `used` set starts that way again. */
+    fn reset(&mut self, name: &str) {
+        if name.is_empty() {
+            self.bags = self.original.bags.clone().into_iter().collect();
+            self.tables = self.original.tables.clone().into_iter().collect();
+            self.changed = true;
+            println!("everything is back to how its file has it");
+            return;
+        }
+
+        /* Resolved to an owned name first: `resolve` holds `self` mutably, and
+           the original sits beside the lists in `self`. */
+        let (name, is_bag) = match self.resolve(name) {
+            Some(Found::Bag(name, _)) => (name.to_string(), true),
+            Some(Found::Table(name, _)) => (name.to_string(), false),
+            None => return,
+        };
+
+        if is_bag {
+            let bag = &mut self.bags.iter_mut().find(|(label, _)| *label == name).unwrap().1;
+            *bag = self.original.bags[&name].clone();
+        } else {
+            let table = &mut self.tables.iter_mut().find(|(label, _)| *label == name).unwrap().1;
+            *table = self.original.tables[&name].clone();
+        }
+        self.changed = true;
+        println!("{name} is back to how its file has it");
     }
 
     /* Borrows the one bag or table `name` addresses, telling the user when
@@ -276,7 +313,7 @@ fn roll(expr: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
 
     fn bag() -> Bag<Encounter> {
         Bag::try_new(HashMap::from([(Encounter::markup("relic"), 1.0)]), None, false).unwrap()
@@ -286,10 +323,20 @@ mod tests {
         Table::try_new(HashMap::from([(1..=10, (Encounter::markup("a diver"), false))]), unique).unwrap()
     }
 
+    /* A session straight from its files: what it starts with is the original. */
+    fn fresh(bags: Vec<NamedBag>, tables: Vec<NamedTable>) -> Session {
+        let original = Tables {
+            bags: bags.iter().cloned().collect(),
+            tables: tables.iter().cloned().collect(),
+            hashes: Default::default(),
+        };
+        Session::new(bags, tables, original)
+    }
+
     /* One bag and two tables, so a table index can land past the end of the
        bag list. */
     fn session() -> Session {
-        Session::new(
+        fresh(
             vec![("artifacts".to_string(), bag())],
             vec![("encounters".to_string(), table(false)), ("rumours".to_string(), table(true))],
         )
@@ -322,7 +369,7 @@ mod tests {
 
     #[test]
     fn an_exact_name_wins_over_a_longer_one() {
-        let mut session = Session::new(vec![("art".to_string(), bag()), ("artifacts".to_string(), bag())], vec![]);
+        let mut session = fresh(vec![("art".to_string(), bag()), ("artifacts".to_string(), bag())], vec![]);
 
         assert_eq!(resolved(&mut session, "art"), Some("art"));
         assert_eq!(resolved(&mut session, "artif"), Some("artifacts"));
@@ -330,7 +377,7 @@ mod tests {
 
     #[test]
     fn a_prefix_matching_a_bag_and_a_table_resolves_to_neither() {
-        let mut session = Session::new(vec![("relics".to_string(), bag())], vec![("rumours".to_string(), table(false))]);
+        let mut session = fresh(vec![("relics".to_string(), bag())], vec![("rumours".to_string(), table(false))]);
 
         assert_eq!(resolved(&mut session, "r"), None);
     }
@@ -338,7 +385,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "names have to be unique")]
     fn a_name_used_by_a_bag_and_a_table_is_rejected() {
-        Session::new(vec![("loot".to_string(), bag())], vec![("loot".to_string(), table(false))]);
+        fresh(vec![("loot".to_string(), bag())], vec![("loot".to_string(), table(false))]);
     }
 
     #[test]
@@ -417,5 +464,58 @@ mod tests {
         for line in ["tables", "help", "roll 2d6", "render *x*", "", "draw nothing-by-that-name"] {
             assert_eq!(saves(&mut session, line), 0, "{line:?}");
         }
+    }
+
+    #[test]
+    fn resetting_saves() {
+        let mut session = session();
+
+        assert_eq!(saves(&mut session, "reset art"), 1);
+        assert_eq!(saves(&mut session, "reset"), 1);
+        assert_eq!(saves(&mut session, "reset nothing-by-that-name"), 0);
+    }
+
+    /* A bag whose file starts it part-drawn: 3 of 4 left. */
+    fn part_drawn() -> Bag<Encounter> {
+        Bag::try_new(
+            HashMap::from([(Encounter::markup("common"), 0.75), (Encounter::markup("rare"), 0.25)]),
+            Some(HashMap::from([(Encounter::markup("common"), 2), (Encounter::markup("rare"), 1)])),
+            false,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn reset_goes_back_to_the_file_where_refill_fills_up() {
+        let mut session = fresh(vec![("loot".to_string(), part_drawn())], vec![]);
+        session.command("draw loot 3");
+        assert_eq!(session.bags[0].1.remaining(), 0);
+
+        session.command("refill loot");
+        assert_eq!(session.bags[0].1.remaining(), 4);
+
+        session.command("reset lo");
+        assert_eq!(session.bags[0].1.remaining(), 3);
+    }
+
+    #[test]
+    fn reset_with_no_name_undoes_a_restored_session() {
+        /* Restored from a save with the bag emptied, over a file that has it
+           part-drawn. */
+        let mut emptied = part_drawn();
+        while emptied.draw().is_some() {}
+        let original = Tables {
+            bags: BTreeMap::from([("loot".to_string(), part_drawn())]),
+            tables: BTreeMap::from([("rumours".to_string(), table(true))]),
+            hashes: Default::default(),
+        };
+        let mut used = table(true);
+        used.draw();
+        let mut session = Session::new(vec![("loot".to_string(), emptied)], vec![("rumours".to_string(), used)], original);
+
+        session.command("reset");
+
+        assert_eq!(session.bags[0].1.remaining(), 3);
+        assert_eq!(session.tables[0].1.remaining(), 1);
     }
 }

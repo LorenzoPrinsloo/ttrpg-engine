@@ -76,3 +76,13 @@ fn looking_saves_nothing() {
 
     assert!(std::fs::read_dir(sessions.path()).unwrap().next().is_none());
 }
+
+#[test]
+fn a_reset_survives_a_restart() {
+    let (config, sessions) = setup();
+    run(config.path(), sessions.path(), &["draw", "pair"]);
+
+    run(config.path(), sessions.path(), &["reset"]);
+
+    assert_eq!(left(config.path(), sessions.path(), &["tables"]), "pair           2 left  unique");
+}
