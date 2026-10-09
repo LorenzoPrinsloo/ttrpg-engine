@@ -1,8 +1,9 @@
-use crate::modules::config::error::LoadError;
 use std::path::{Path, PathBuf};
 
-/* Where to look for the tables directory, in order. Pure, so the order can be
-   tested without touching the filesystem. */
+use crate::modules::config::error::LoadError;
+
+// Where to look for the tables directory, in order. Pure, so the order can be
+// tested without touching the filesystem.
 pub(crate) fn candidates(cwd: &Path, exe: Option<&Path>) -> Vec<PathBuf> {
     const CONF_ROOT: &str = "config";
 
@@ -21,8 +22,8 @@ pub(crate) fn candidates(cwd: &Path, exe: Option<&Path>) -> Vec<PathBuf> {
 }
 
 pub(crate) fn resolve() -> Result<PathBuf, LoadError> {
-    /* An override is taken as given rather than added to the search: falling
-       back from it would quietly hide a typo. */
+    // An override is taken as given rather than added to the search: falling
+    // back from it would quietly hide a typo.
     if let Some(dir) = std::env::var_os("MOTHERSHIP_TABLES") {
         let dir = PathBuf::from(dir);
 
@@ -43,8 +44,8 @@ pub(crate) fn resolve() -> Result<PathBuf, LoadError> {
         .ok_or(LoadError::NoDirectory { tried })
 }
 
-/* Holding `bags/` or `tables/` is what makes a directory ours. Plain
-   `is_dir` would match `src/modules/tables`, the Table module's own source. */
+// Holding `bags/` or `tables/` is what makes a directory ours. Plain
+// `is_dir` would match `src/modules/tables`, the Table module's own source.
 fn looks_like_tables(dir: &Path) -> bool {
     dir.join("bags").is_dir() || dir.join("tables").is_dir()
 }
@@ -54,7 +55,10 @@ mod tests {
     use super::*;
 
     fn names(paths: &[PathBuf]) -> Vec<String> {
-        paths.iter().map(|path| path.display().to_string()).collect()
+        paths
+            .iter()
+            .map(|path| path.display().to_string())
+            .collect()
     }
 
     #[test]

@@ -1,15 +1,17 @@
 use std::collections::BTreeMap;
-use crate::modules::bags::Bag;
-use crate::modules::config::error::LoadError;
-use crate::modules::config::paths;
-use crate::modules::encounters::Encounter;
-use crate::modules::tables::Table;
 use std::path::{Path, PathBuf};
+
 use figment::Figment;
 use figment::providers::{Format, Toml};
 use serde::Deserialize;
+
 use crate::config::provider::Nested;
+use crate::modules::bags::Bag;
+use crate::modules::config::error::LoadError;
 use crate::modules::config::hash;
+use crate::modules::config::paths;
+use crate::modules::encounters::Encounter;
+use crate::modules::tables::Table;
 
 #[derive(Clone, Deserialize)]
 pub struct Tables {
@@ -17,14 +19,14 @@ pub struct Tables {
     pub bags: BTreeMap<String, Bag<Encounter>>,
     #[serde(default)]
     pub tables: BTreeMap<String, Table<Encounter>>,
-    /* Each file's fingerprint, keyed by its path under the root, as
-       `bags/artifacts.toml`. Not part of the document: filled in beside it. */
+    // Each file's fingerprint, keyed by its path under the root, as
+    // `bags/artifacts.toml`. Not part of the document: filled in beside it.
     #[serde(skip)]
     pub hashes: BTreeMap<String, String>,
 }
 
-/* The key a file's fingerprint is kept under, both here and in a saved
-   session: `bags/artifacts.toml` for the bag called "artifacts". */
+// The key a file's fingerprint is kept under, both here and in a saved
+// session: `bags/artifacts.toml` for the bag called "artifacts".
 pub(crate) fn hash_key(section: &str, name: &str) -> String {
     format!("{section}/{name}.toml")
 }
@@ -36,7 +38,7 @@ pub fn load() -> Result<(PathBuf, Tables), Vec<LoadError>> {
     Ok((root, tables))
 }
 
-/* Everything under `root`, which is taken as found: no searching. */
+// Everything under `root`, which is taken as found: no searching.
 pub(crate) fn load_from(root: &Path) -> Result<Tables, Vec<LoadError>> {
     let mut figment: Figment = Figment::new();
     let mut errors: Vec<LoadError> = Vec::new();
@@ -52,15 +54,15 @@ pub(crate) fn load_from(root: &Path) -> Result<Tables, Vec<LoadError>> {
                 }
             };
 
-            /* Read apart from figment, which opens the file itself. An edit
-               landing between the two reads would go unnoticed until the next
-               start, which is fine for a file edited by hand. */
+            // Read apart from figment, which opens the file itself. An edit
+            // landing between the two reads would go unnoticed until the next
+            // start, which is fine for a file edited by hand.
             match std::fs::read(&path) {
                 Ok(bytes) => {
                     hashes.insert(hash_key(section, &name), hash::fingerprint(&bytes));
                 }
-                Err(error) => {
-                    errors.push(LoadError::Io { path, error });
+                Err(source) => {
+                    errors.push(LoadError::Io { path, source });
                     continue;
                 }
             }
@@ -78,7 +80,9 @@ pub(crate) fn load_from(root: &Path) -> Result<Tables, Vec<LoadError>> {
         .map_err(|error| error.into_iter().map(LoadError::Config).collect::<Vec<_>>())?;
 
     if tables.bags.is_empty() && tables.tables.is_empty() {
-        return Err(vec![LoadError::NoTables { root: root.to_path_buf() }]);
+        return Err(vec![LoadError::NoTables {
+            root: root.to_path_buf(),
+        }]);
     }
 
     tables.hashes = hashes;
@@ -94,12 +98,18 @@ fn toml_files(dir: &Path) -> Vec<PathBuf> {
     entries
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .filter(|path| path.extension().is_some_and(|extension| extension == "toml"))
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "toml")
+        })
         .collect()
 }
 
 fn name_of(path: &Path) -> Result<String, LoadError> {
-    let name = path.file_stem().and_then(|stem| stem.to_str()).unwrap_or_default();
+    let name = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or_default();
 
     if name.is_empty() || name.contains(char::is_whitespace) {
         return Err(LoadError::Name { path: path.into() });
@@ -115,7 +125,10 @@ mod tests {
 
     #[test]
     fn a_syntax_error_reports_the_line() {
-        let error = tables("[[bags.artifacts.items]\nratio = 1.0").err().unwrap().to_string();
+        let error = tables("[[bags.artifacts.items]\nratio = 1.0")
+            .err()
+            .unwrap()
+            .to_string();
 
         assert!(error.contains("line"), "{error}");
     }
@@ -149,9 +162,15 @@ mod tests {
 
     #[test]
     fn a_name_with_a_space_is_rejected() {
-        let error = name_of(Path::new("config/bags/loot table.toml")).err().unwrap();
+        let error = name_of(Path::new("config/bags/loot table.toml"))
+            .err()
+            .unwrap();
 
-        assert!(error.to_string().contains("cannot be empty or contain spaces"));
+        assert!(
+            error
+                .to_string()
+                .contains("cannot be empty or contain spaces")
+        );
     }
 
     const ENCOUNTERS_TOML: &str = include_str!("../../../config/bags/encounters.toml");
@@ -159,8 +178,8 @@ mod tests {
 
     #[test]
     fn the_shipped_files_have_no_backslashes() {
-        /* Markup owns `\`, so any that appeared would mean TOML escaping had
-           crept into text that is meant to be literal. */
+        // Markup owns `\`, so any that appeared would mean TOML escaping had
+        // crept into text that is meant to be literal.
         assert!(!ENCOUNTERS_TOML.contains('\\'));
         assert!(!ARTIFACTS_TOML.contains('\\'));
     }
@@ -168,12 +187,20 @@ mod tests {
     #[test]
     fn the_shipped_bags_keep_their_shape() {
         let loaded: Tables = Figment::new()
-            .merge(Nested::new("bags", "encounters", Toml::string(ENCOUNTERS_TOML)))
-            .merge(Nested::new("bags", "artifacts", Toml::string(ARTIFACTS_TOML)))
+            .merge(Nested::new(
+                "bags",
+                "encounters",
+                Toml::string(ENCOUNTERS_TOML),
+            ))
+            .merge(Nested::new(
+                "bags",
+                "artifacts",
+                Toml::string(ARTIFACTS_TOML),
+            ))
             .extract()
             .unwrap();
 
-        /* 1:3:3:2:1 after the gcd, and a true d100 table. */
+        // 1:3:3:2:1 after the gcd, and a true d100 table.
         assert_eq!(loaded.bags["encounters"].remaining(), 10);
         assert_eq!(loaded.bags["artifacts"].remaining(), 100);
         assert!(loaded.bags["artifacts"].unique());
@@ -184,16 +211,23 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(root.path().join("bags")).unwrap();
         std::fs::create_dir_all(root.path().join("tables")).unwrap();
+        let rumours = "[[rows]]\nrange = '1'\ntext = 'x'";
         std::fs::write(root.path().join("bags/artifacts.toml"), ARTIFACTS_TOML).unwrap();
-        std::fs::write(root.path().join("tables/rumours.toml"), "[[rows]]\nrange = '1'\ntext = 'x'").unwrap();
+        std::fs::write(root.path().join("tables/rumours.toml"), rumours).unwrap();
 
         let loaded = load_from(root.path()).unwrap();
 
         assert_eq!(
             loaded.hashes,
             BTreeMap::from([
-                ("bags/artifacts.toml".to_string(), hash::fingerprint(ARTIFACTS_TOML.as_bytes())),
-                ("tables/rumours.toml".to_string(), hash::fingerprint(b"[[rows]]\nrange = '1'\ntext = 'x'")),
+                (
+                    "bags/artifacts.toml".to_string(),
+                    hash::fingerprint(ARTIFACTS_TOML.as_bytes())
+                ),
+                (
+                    "tables/rumours.toml".to_string(),
+                    hash::fingerprint(rumours.as_bytes())
+                ),
             ])
         );
     }
@@ -203,10 +237,10 @@ mod tests {
         assert!(toml_files(Path::new("/nonexistent/bags")).is_empty());
     }
 
-    /* -- Tables through figment ---------------------------------------------- */
+    // -- Tables through figment ----------------------------------------------
 
-    /* The nested shape the per-file providers merge into: every file's contents
-       under `bags.<name>` or `tables.<name>`. */
+    // The nested shape the per-file providers merge into: every file's contents
+    // under `bags.<name>` or `tables.<name>`.
     fn tables(source: &str) -> Result<Tables, figment::Error> {
         Figment::from(Toml::string(source)).extract()
     }
@@ -225,10 +259,13 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(loaded.bags.keys().collect::<Vec<_>>(), ["artifacts", "encounters"]);
+        assert_eq!(
+            loaded.bags.keys().collect::<Vec<_>>(),
+            ["artifacts", "encounters"]
+        );
         assert_eq!(loaded.tables.keys().collect::<Vec<_>>(), ["rumours"]);
 
-        /* Reaching try_new shows up as the ratios reduced and `unique` kept. */
+        // Reaching try_new shows up as the ratios reduced and `unique` kept.
         assert!(loaded.bags["artifacts"].unique());
         assert_eq!(loaded.bags["encounters"].remaining(), 4);
         assert_eq!(loaded.tables["rumours"].remaining(), 2);
@@ -303,10 +340,10 @@ mod tests {
         )
         .unwrap();
 
-        /* Compared as parsed markup rather than rendered text: rendering depends
-           on `colored`'s global switch, which the render tests turn on while
-           this one may be running. Equal to the untrimmed text's parse means
-           the trailing newline is gone too. */
+        // Compared as parsed markup rather than rendered text: rendering depends
+        // on `colored`'s global switch, which the render tests turn on while
+        // this one may be running. Equal to the untrimmed text's parse means
+        // the trailing newline is gone too.
         let drawn = loaded.bags.get_mut("artifacts").unwrap().draw().unwrap();
         assert_eq!(drawn, Encounter::markup("**[3d1] Black Marble(s).**"));
     }

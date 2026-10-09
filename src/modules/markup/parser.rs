@@ -1,22 +1,24 @@
-use crate::markup::{DiceExpr, Node};
-use colored::Color;
 use std::str::FromStr;
 
-/* The style markers. Each one both opens and closes its span. */
+use colored::Color;
+
+use crate::markup::{DiceExpr, Node};
+
+// The style markers. Each one both opens and closes its span.
 const BOLD: &str = "**";
 const ITALIC: &str = "*";
 const UNDERLINE: &str = "__";
 
-/* Spans nested deeper than this are treated as malformed, keeping the
-   recursion below off a stack that pathological input could exhaust. Real
-   text never comes close. */
+// Spans nested deeper than this are treated as malformed, keeping the
+// recursion below off a stack that pathological input could exhaust. Real
+// text never comes close.
 const MAX_DEPTH: usize = 64;
 
-/* Parses markup into a tree of [`Node`]s. This never fails: malformed
-   markup comes back as literal text. */
+// Parses markup into a tree of [`Node`]s. This never fails: malformed
+// markup comes back as literal text.
 pub fn parse(input: &str) -> Vec<Node> {
-    /* With no closing marker to look for, parsing can only stop at the end
-       of the input, so this cannot be `Err`. */
+    // With no closing marker to look for, parsing can only stop at the end
+    // of the input, so this cannot be `Err`.
     Parser::new(input).children(None).unwrap_or_default()
 }
 
@@ -26,12 +28,16 @@ struct Parser {
     depth: usize,
 }
 
-/* The expected closing marker was never found before the end of the input. */
+// The expected closing marker was never found before the end of the input.
 struct Unclosed;
 
 impl Parser {
     fn new(input: &str) -> Self {
-        Self { chars: input.chars().collect(), pos: 0, depth: 0 }
+        Self {
+            chars: input.chars().collect(),
+            pos: 0,
+            depth: 0,
+        }
     }
 
     fn peek(&self) -> Option<char> {
@@ -51,9 +57,9 @@ impl Parser {
             .all(|(i, c)| self.chars.get(self.pos + i) == Some(&c))
     }
 
-    /* Consumes `marker` when it closes the span being parsed. A `**` inside
-       an italic span opens bold rather than closing the italic, even though
-       the italic marker is a prefix of it. */
+    // Consumes `marker` when it closes the span being parsed. A `**` inside
+    // an italic span opens bold rather than closing the italic, even though
+    // the italic marker is a prefix of it.
     fn eat_closing(&mut self, marker: &str) -> bool {
         if !self.starts_with(marker) || (marker == ITALIC && self.starts_with(BOLD)) {
             return false;
@@ -63,30 +69,34 @@ impl Parser {
         true
     }
 
-    /* Parses nodes until `closing` is found (and consumed) or, when
-       `closing` is `None`, until the end of the input.
-
-       This is the only recursive function in the grammar: every span
-       re-enters it with its own closing marker. */
+    // Parses nodes until `closing` is found (and consumed) or, when
+    // `closing` is `None`, until the end of the input.
+    //
+    // This is the only recursive function in the grammar: every span
+    // re-enters it with its own closing marker.
     fn children(&mut self, closing: Option<&str>) -> Result<Vec<Node>, Unclosed> {
         let mut nodes = Vec::new();
 
         loop {
-            /* Looking for the closing marker before any opening marker is
-               what stops a marker nesting inside itself: inside bold, `**`
-               always closes. */
+            // Looking for the closing marker before any opening marker is
+            // what stops a marker nesting inside itself: inside bold, `**`
+            // always closes.
             if closing.is_some_and(|marker| self.eat_closing(marker)) {
                 return Ok(nodes);
             }
             let Some(c) = self.peek() else {
-                return if closing.is_some() { Err(Unclosed) } else { Ok(nodes) };
+                return if closing.is_some() {
+                    Err(Unclosed)
+                } else {
+                    Ok(nodes)
+                };
             };
 
             let start = self.pos;
             let parsed = match c {
                 '\\' => {
                     self.bump();
-                    /* A trailing lone backslash is literal. */
+                    // A trailing lone backslash is literal.
                     push_char(&mut nodes, self.bump().unwrap_or('\\'));
                     continue;
                 }
@@ -104,9 +114,9 @@ impl Parser {
 
             match parsed {
                 Some(node) => nodes.push(node),
-                /* Malformed: rewind, emit the opening character literally
-                   and let the loop rescan from just after it. That single
-                   character step is what turns `**never closed` into text. */
+                // Malformed: rewind, emit the opening character literally
+                // and let the loop rescan from just after it. That single
+                // character step is what turns `**never closed` into text.
                 None => {
                     self.pos = start + 1;
                     push_char(&mut nodes, c);
@@ -115,9 +125,9 @@ impl Parser {
         }
     }
 
-    /* Parses the body of a span, refusing to nest past [`MAX_DEPTH`].
-       Returning `None` hands the span to the malformed path, which is the
-       same place unclosed markers end up. */
+    // Parses the body of a span, refusing to nest past [`MAX_DEPTH`].
+    // Returning `None` hands the span to the malformed path, which is the
+    // same place unclosed markers end up.
     fn nested(&mut self, closing: &str) -> Option<Vec<Node>> {
         if self.depth == MAX_DEPTH {
             return None;
@@ -129,14 +139,14 @@ impl Parser {
         children
     }
 
-    /* `**...**` or `__...__`. */
+    // `**...**` or `__...__`.
     fn span(&mut self, marker: &str) -> Option<Vec<Node>> {
         self.pos += marker.chars().count();
         self.nested(marker)
     }
 
-    /* `{colour|text}`. The colour is everything up to the *first* `|`; any
-       later pipes are part of the text. */
+    // `{colour|text}`. The colour is everything up to the *first* `|`; any
+    // later pipes are part of the text.
     fn color(&mut self) -> Option<Node> {
         self.pos += 1;
 
@@ -155,8 +165,8 @@ impl Parser {
         Some(Node::Color { color, children })
     }
 
-    /* `[2d6+3]`. Expression context: the content is read as raw characters,
-       with no markup inside, and then has to parse as a dice expression. */
+    // `[2d6+3]`. Expression context: the content is read as raw characters,
+    // with no markup inside, and then has to parse as a dice expression.
     fn dice(&mut self) -> Option<Node> {
         self.pos += 1;
 
@@ -188,9 +198,21 @@ fn parse_color(name: &str) -> Option<Color> {
 
     match name.as_str() {
         "gray" | "grey" => Some(Color::BrightBlack),
-        "orange" => Some(Color::TrueColor { r: 255, g: 165, b: 0 }),
-        "pink" => Some(Color::TrueColor { r: 255, g: 192, b: 203 }),
-        "brown" => Some(Color::TrueColor { r: 165, g: 42, b: 42 }),
+        "orange" => Some(Color::TrueColor {
+            r: 255,
+            g: 165,
+            b: 0,
+        }),
+        "pink" => Some(Color::TrueColor {
+            r: 255,
+            g: 192,
+            b: 203,
+        }),
+        "brown" => Some(Color::TrueColor {
+            r: 165,
+            g: 42,
+            b: 42,
+        }),
         _ => Color::from_str(&name).ok(),
     }
 }
@@ -202,7 +224,7 @@ fn parse_hex(hex: &str) -> Option<Color> {
         .collect::<Option<_>>()?;
 
     let [r, g, b] = match digits[..] {
-        [r, g, b] => [r * 17, g * 17, b * 17], /* #rgb widens to #rrggbb */
+        [r, g, b] => [r * 17, g * 17, b * 17], // #rgb widens to #rrggbb
         [r1, r2, g1, g2, b1, b2] => [r1 * 16 + r2, g1 * 16 + g2, b1 * 16 + b2],
         _ => return None,
     };
@@ -257,7 +279,7 @@ mod tests {
 
     #[test]
     fn bold_wins_over_italic() {
-        /* `**` opens bold inside an italic span instead of closing it. */
+        // `**` opens bold inside an italic span instead of closing it.
         assert_eq!(
             parse("*a **b** c*"),
             vec![Node::Italic(vec![
@@ -274,8 +296,8 @@ mod tests {
                 text(" c"),
             ])]
         );
-        /* Which leaves `***x***` ambiguous: the `**` pair binds and the odd
-           asterisks stay literal. */
+        // Which leaves `***x***` ambiguous: the `**` pair binds and the odd
+        // asterisks stay literal.
         assert_eq!(
             parse("***x***"),
             vec![text("*"), Node::Bold(vec![text("x")]), text("*")]
@@ -316,15 +338,19 @@ mod tests {
             parse("{red|plain **bold** plain}"),
             vec![colored(
                 Color::Red,
-                vec![text("plain "), Node::Bold(vec![text("bold")]), text(" plain")]
+                vec![
+                    text("plain "),
+                    Node::Bold(vec![text("bold")]),
+                    text(" plain")
+                ]
             )]
         );
     }
 
     #[test]
     fn same_marker_closes_instead_of_nesting() {
-        /* The second `**` closes the first span, and the third opens a new
-           one that the fourth closes - the same way Markdown behaves. */
+        // The second `**` closes the first span, and the third opens a new
+        // one that the fourth closes - the same way Markdown behaves.
         assert_eq!(
             parse("**a **b** c**"),
             vec![
@@ -359,15 +385,26 @@ mod tests {
         );
         assert_eq!(
             parse("{orange|x}"),
-            vec![colored(Color::TrueColor { r: 255, g: 165, b: 0 }, vec![text("x")])]
+            vec![colored(
+                Color::TrueColor {
+                    r: 255,
+                    g: 165,
+                    b: 0
+                },
+                vec![text("x")]
+            )]
         );
     }
 
     #[test]
     fn hex_colours() {
-        let orange = Color::TrueColor { r: 255, g: 136, b: 0 };
+        let orange = Color::TrueColor {
+            r: 255,
+            g: 136,
+            b: 0,
+        };
         assert_eq!(parse("{#ff8800|x}"), vec![colored(orange, vec![text("x")])]);
-        /* Three digit hex widens each digit: #f80 == #ff8800. */
+        // Three digit hex widens each digit: #f80 == #ff8800.
         assert_eq!(parse("{#F80|x}"), vec![colored(orange, vec![text("x")])]);
     }
 
@@ -377,7 +414,7 @@ mod tests {
         assert_eq!(parse("{#ff88|x}"), vec![text("{#ff88|x}")]);
         assert_eq!(parse("{red no pipe}"), vec![text("{red no pipe}")]);
         assert_eq!(parse("{}"), vec![text("{}")]);
-        /* A non-ASCII colour name must not panic while being rejected. */
+        // A non-ASCII colour name must not panic while being rejected.
         assert_eq!(parse("{#aáxyz|x}"), vec![text("{#aáxyz|x}")]);
     }
 
@@ -391,9 +428,9 @@ mod tests {
 
     #[test]
     fn spans_cannot_overlap() {
-        /* `__` cannot close while bold is still open, so the bold span never
-           finds its end and the whole thing degrades to text - except for
-           the inner `__b **c__` pair, which does nest properly. */
+        // `__` cannot close while bold is still open, so the bold span never
+        // finds its end and the whole thing degrades to text - except for
+        // the inner `__b **c__` pair, which does nest properly.
         assert_eq!(
             parse("**a __b **c__"),
             vec![text("**a "), Node::Underline(vec![text("b **c")])]
@@ -411,10 +448,10 @@ mod tests {
 
     #[test]
     fn no_markup_inside_an_expression() {
-        /* `**` is part of the expression text, which then fails to parse, so
-           the `[` degrades to literal text. From there the content is
-           ordinary text again - and ordinary text is markup context, so the
-           `**6**` inside it does become bold. */
+        // `**` is part of the expression text, which then fails to parse, so
+        // the `[` degrades to literal text. From there the content is
+        // ordinary text again - and ordinary text is markup context, so the
+        // `**6**` inside it does become bold.
         assert_eq!(
             parse("[2d**6**]"),
             vec![text("[2d"), Node::Bold(vec![text("6")]), text("]")]
@@ -453,7 +490,7 @@ mod tests {
     #[test]
     fn nesting_past_the_cap_is_malformed_rather_than_a_stack_overflow() {
         let deep = format!("{}x{}", "{red|".repeat(10_000), "}".repeat(10_000));
-        /* The spans within the cap still parse; everything past it is text. */
+        // The spans within the cap still parse; everything past it is text.
         assert!(matches!(parse(&deep).first(), Some(Node::Color { .. })));
     }
 }

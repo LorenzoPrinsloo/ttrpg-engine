@@ -2,6 +2,7 @@ pub mod modules;
 
 pub use modules::{bags, config, encounters, markup, persistence, shell};
 
+use config::Tables;
 use persistence::{SessionFile, SessionStore};
 
 fn main() {
@@ -25,8 +26,8 @@ fn main() {
         }
     };
 
-    /* A session that is there but will not load stops the start: carrying on
-       with full tables would overwrite it on the first draw. */
+    // A session that is there but will not load stops the start: carrying on
+    // with full tables would overwrite it on the first draw.
     let store = SessionStore::locate().unwrap_or_else(|error| fail(error));
     let original = loaded.clone();
     match store.load(&name) {
@@ -39,8 +40,8 @@ fn main() {
         Err(error) => fail(error),
     }
 
-    /* Only when there is a session to have: a one-shot command should print
-       nothing but its answer. */
+    // Only when there is a session to have: a one-shot command should print
+    // nothing but its answer.
     if args.is_empty() {
         println!(
             "{} bags and {} tables from {}, session {name:?}",
@@ -50,17 +51,21 @@ fn main() {
         );
     }
 
-    let hashes = loaded.hashes;
+    let Tables {
+        bags,
+        tables,
+        hashes,
+    } = loaded;
     shell::run(
-        loaded.bags.into_iter().collect(),
-        loaded.tables.into_iter().collect(),
+        bags.into_iter().collect(),
+        tables.into_iter().collect(),
         original,
         &args,
         |bags, tables| {
-            /* Reported but not fatal: the game in front of the user is still
-               fine, and the next save may well succeed. */
+            // Reported but not fatal: the game in front of the user is still
+            // fine, and the next save may well succeed.
             if let Err(error) = store.save(&name, &SessionFile::capture(bags, tables, &hashes)) {
-                eprintln!("not saved: {error}");
+                eprintln!("cannot save the session: {error}");
             }
         },
     );
@@ -71,30 +76,25 @@ fn fail(error: impl std::fmt::Display) -> ! {
     std::process::exit(1);
 }
 
-/* `--session NAME` (or `--session=NAME`) picks the session, `default` when
-   absent. Only read ahead of the command, so a command's own text can never
-   be taken for it. */
-fn split_session(mut args: Vec<String>) -> Result<(String, Vec<String>), String> {
-    const FLAG: &str = "--session";
-
-    let name = match args.first().map(String::as_str) {
-        Some(FLAG) => match args.get(1) {
-            Some(name) => {
-                let name = name.clone();
-                args.drain(..2);
-                name
-            }
-            None => return Err(format!("{FLAG} needs a name")),
-        },
-        Some(first) if first.starts_with("--session=") => {
-            let name = first[FLAG.len() + 1..].to_string();
-            args.remove(0);
-            name
-        }
-        _ => "default".to_string(),
+// `--session NAME` (or `--session=NAME`) picks the session, `default` when
+// absent. Only read ahead of the command, so a command's own text can never
+// be taken for it.
+fn split_session(args: Vec<String>) -> Result<(String, Vec<String>), String> {
+    let Some(first) = args.first() else {
+        return Ok(("default".to_string(), args));
     };
 
-    Ok((name, args))
+    if first == "--session" {
+        let name = args
+            .get(1)
+            .ok_or("cannot pick a session: --session needs a name")?;
+        return Ok((name.clone(), args[2..].to_vec()));
+    }
+
+    match first.strip_prefix("--session=") {
+        Some(name) => Ok((name.to_string(), args[1..].to_vec())),
+        None => Ok(("default".to_string(), args)),
+    }
 }
 
 #[cfg(test)]
@@ -107,13 +107,27 @@ mod tests {
 
     #[test]
     fn without_the_flag_the_session_is_default() {
-        assert_eq!(split(&["draw", "artifacts"]).unwrap(), ("default".to_string(), vec!["draw".to_string(), "artifacts".to_string()]));
+        assert_eq!(
+            split(&["draw", "artifacts"]).unwrap(),
+            (
+                "default".to_string(),
+                vec!["draw".to_string(), "artifacts".to_string()]
+            )
+        );
     }
 
     #[test]
     fn the_flag_takes_the_next_argument() {
-        assert_eq!(split(&["--session", "derelict", "draw", "artifacts"]).unwrap().0, "derelict");
-        assert_eq!(split(&["--session=derelict"]).unwrap(), ("derelict".to_string(), vec![]));
+        assert_eq!(
+            split(&["--session", "derelict", "draw", "artifacts"])
+                .unwrap()
+                .0,
+            "derelict"
+        );
+        assert_eq!(
+            split(&["--session=derelict"]).unwrap(),
+            ("derelict".to_string(), vec![])
+        );
     }
 
     #[test]

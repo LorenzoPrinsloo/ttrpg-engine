@@ -1,10 +1,12 @@
 use std::collections::HashMap;
-use rand::RngExt;
-use crate::modules::draw::Draw;
-use crate::bags::math::greatest_common_denominator;
-use serde::{Deserialize, Serialize};
-use crate::modules::config::BagFile;
 use std::fmt::Display;
+
+use rand::RngExt;
+use serde::{Deserialize, Serialize};
+
+use crate::bags::math::greatest_common_denominator;
+use crate::modules::config::BagFile;
+use crate::modules::draw::Draw;
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(
@@ -19,15 +21,15 @@ use std::fmt::Display;
 pub struct Bag<T> {
     pub(crate) items: Vec<T>,
     pub(crate) distributions: HashMap<T, f64>,
-    /* are items in this bag unique (Have only 1 available and should remove the chance of finding one when one is discovered) */
-    unique: bool
+    // are items in this bag unique (Have only 1 available and should remove the chance of finding one when one is discovered)
+    unique: bool,
 }
 
-/* Why a bag could not be built. Carries no entry position: the ratios come
-   from a map, which has no order to point at. The loader adds the file name. */
+// Why a bag could not be built. Carries no entry position: the ratios come
+// from a map, which has no order to point at. The loader adds the file name.
 #[derive(Debug, PartialEq)]
 pub enum BagError {
-    /* Ratios are quantized to hundredths, so the sum is carried as percent. */
+    // Ratios are quantized to hundredths, so the sum is carried as percent.
     Ratios(u32),
     NotARatio(f64),
 }
@@ -50,8 +52,8 @@ impl std::fmt::Display for BagError {
 impl std::error::Error for BagError {}
 
 impl<T: Clone + Eq + std::hash::Hash> Bag<T> {
-    /* Fails rather than panics, because these ratios come from a file the
-       user edits by hand. */
+    // Fails rather than panics, because these ratios come from a file the
+    // user edits by hand.
     pub(crate) fn try_new(
         distributions: HashMap<T, f64>,
         maybe_remaining_items: Option<HashMap<T, usize>>,
@@ -70,12 +72,8 @@ impl<T: Clone + Eq + std::hash::Hash> Bag<T> {
         }
 
         let items: Vec<T> = match maybe_remaining_items {
-            Some(remaining_items) => {
-                Self::load_items_from_remaining(&remaining_items)
-            }
-            None => {
-                Self::starting_items(&distributions)
-            }
+            Some(remaining_items) => Self::load_items_from_remaining(&remaining_items),
+            None => Self::starting_items(&distributions),
         };
 
         Ok(Self {
@@ -86,29 +84,37 @@ impl<T: Clone + Eq + std::hash::Hash> Bag<T> {
     }
 
     fn load_items_from_remaining(remaining: &HashMap<T, usize>) -> Vec<T> {
-        remaining.iter()
+        remaining
+            .iter()
             .flat_map(|(t, &v)| std::iter::repeat_n(t.clone(), v))
             .collect()
     }
 
     fn starting_items(distributions: &HashMap<T, f64>) -> Vec<T> {
-        let parts: Vec<(&T, u32)> = distributions.iter()
+        let parts: Vec<(&T, u32)> = distributions
+            .iter()
             .map(|(v, ratio)| {
-                assert!((0.0..=1.0).contains(ratio), "all ratios must be between 0.0..=1.0");
+                assert!(
+                    (0.0..=1.0).contains(ratio),
+                    "all ratios must be between 0.0..=1.0"
+                );
                 (v, (ratio * 100.0).round() as u32)
             })
             .collect();
 
-        /* One divisor for the whole bag */
-        let divisor = parts.iter()
-            .fold(0, |divisor, (_, part)| greatest_common_denominator(divisor, *part))
+        // One divisor for the whole bag
+        let divisor = parts
+            .iter()
+            .fold(0, |divisor, (_, part)| {
+                greatest_common_denominator(divisor, *part)
+            })
             .max(1);
 
-        parts.iter()
+        parts
+            .iter()
             .flat_map(|(v, part)| std::iter::repeat_n((*v).clone(), (part / divisor) as usize))
             .collect()
     }
-
 }
 
 impl<T: Clone + Eq + std::hash::Hash> Draw for Bag<T> {
@@ -157,7 +163,8 @@ mod tests {
     #[test]
     fn ratios_that_do_not_add_up_are_reported() {
         let error = Bag::try_new(HashMap::from([("common", 0.5), ("rare", 0.3)]), None, false)
-            .err().unwrap();
+            .err()
+            .unwrap();
 
         assert_eq!(error, BagError::Ratios(80));
         assert!(error.to_string().contains("0.8"), "{error}");
@@ -165,7 +172,9 @@ mod tests {
 
     #[test]
     fn a_ratio_outside_zero_to_one_is_reported() {
-        let error = Bag::try_new(HashMap::from([("impossible", 1.5)]), None, false).err().unwrap();
+        let error = Bag::try_new(HashMap::from([("impossible", 1.5)]), None, false)
+            .err()
+            .unwrap();
 
         assert_eq!(error, BagError::NotARatio(1.5));
     }
@@ -179,7 +188,7 @@ mod tests {
         )
         .unwrap();
 
-        /* 50:30:20 reduces to 5:3:2. */
+        // 50:30:20 reduces to 5:3:2.
         assert_eq!(copies(&bag, "common"), 5);
         assert_eq!(copies(&bag, "uncommon"), 3);
         assert_eq!(copies(&bag, "rare"), 2);

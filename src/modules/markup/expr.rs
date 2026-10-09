@@ -1,11 +1,11 @@
 use crate::encounters::Die;
 
-/* Sanity caps, so `[9999999d9999999]` cannot be used as a resource bomb.
-   They also keep the `u32` sum inside [`Die::roll`] far from overflowing. */
+// Sanity caps, so `[9999999d9999999]` cannot be used as a resource bomb.
+// They also keep the `u32` sum inside [`Die::roll`] far from overflowing.
 const MAX_DICE: u32 = 1_000;
 const MAX_SIDES: u32 = 1_000_000;
 
-/* The contents of a `[...]` span: a signed sum of terms, as in `2d6+3-1d4`. */
+// The contents of a `[...]` span: a signed sum of terms, as in `2d6+3-1d4`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct DiceExpr {
     pub terms: Vec<(Sign, Term)>,
@@ -62,7 +62,7 @@ impl DiceExpr {
 impl Term {
     fn parse(text: &str) -> Option<Self> {
         let Some((count, sides)) = text.split_once(['d', 'D']) else {
-            /* `parse` rejects empty strings and non-ASCII digits for us. */
+            // `parse` rejects empty strings and non-ASCII digits for us.
             return Some(Self::Const(text.parse().ok()?));
         };
 
@@ -70,8 +70,7 @@ impl Term {
             n: count.parse().ok()?,
             sides: sides.parse().ok()?,
         };
-        let within_caps =
-            (1..=MAX_DICE).contains(&die.n) && (1..=MAX_SIDES).contains(&die.sides);
+        let within_caps = (1..=MAX_DICE).contains(&die.n) && (1..=MAX_SIDES).contains(&die.sides);
 
         within_caps.then_some(Self::Roll(die))
     }
@@ -97,7 +96,9 @@ mod tests {
     fn single_roll() {
         assert_eq!(
             DiceExpr::parse("2d6"),
-            Some(DiceExpr { terms: vec![roll(2, 6)] })
+            Some(DiceExpr {
+                terms: vec![roll(2, 6)]
+            })
         );
     }
 
@@ -119,7 +120,16 @@ mod tests {
     #[test]
     fn malformed_expressions_are_rejected() {
         for raw in [
-            "", "d6", "2d", "2d6d6", "see pg. 12", "1d6+", "+1d6", "1d6++1", "1,5", "2 d 6+x",
+            "",
+            "d6",
+            "2d",
+            "2d6d6",
+            "see pg. 12",
+            "1d6+",
+            "+1d6",
+            "1d6++1",
+            "1,5",
+            "2 d 6+x",
         ] {
             assert_eq!(DiceExpr::parse(raw), None, "{raw:?} should not parse");
         }
@@ -142,7 +152,7 @@ mod tests {
 
     #[test]
     fn eval_sums_rolls_and_constants() {
-        /* A d1 always rolls 1, so these totals are deterministic. */
+        // A d1 always rolls 1, so these totals are deterministic.
         assert_eq!(DiceExpr::parse("3d1+2").unwrap().eval(), 5);
         assert_eq!(DiceExpr::parse("2-5d1").unwrap().eval(), -3);
     }

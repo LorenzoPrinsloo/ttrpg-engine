@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
+
 use crate::bags::Bag;
 use crate::encounters::Encounter;
 use crate::modules::config::Tables;
@@ -17,18 +19,18 @@ pub(crate) struct SessionFile {
 }
 
 impl SessionFile {
-    /* The newest format this build reads. A file saying more came from a
-       newer build, and may hold fields this one would drop on the next save. */
+    // The newest format this build reads. A file saying more came from a
+    // newer build, and may hold fields this one would drop on the next save.
     pub(crate) const VERSION: u32 = 1;
 
-    /* What gets written to disk: every bag and table as it stands, with the
-       fingerprints of the files they were loaded from. */
+    // What gets written to disk: every bag and table as it stands, with the
+    // fingerprints of the files they were loaded from.
     pub(crate) fn capture(
         bags: &[(String, Bag<Encounter>)],
         tables: &[(String, Table<Encounter>)],
         hashes: &BTreeMap<String, String>,
     ) -> Self {
-        SessionFile {
+        Self {
             version: Self::VERSION,
             config_hashes: hashes.clone(),
             bags: bags.iter().cloned().collect(),
@@ -36,18 +38,32 @@ impl SessionFile {
         }
     }
 
-    /* Lays the saved state over a freshly loaded config. A bag or table only
-       comes back if its file is byte for byte what it was at the save: an
-       edited file may have new entries or ratios the saved one knows nothing
-       of, so it starts full instead. Returns a note for each one that did not
-       come back, for the user to read. */
+    // Lays the saved state over a freshly loaded config. A bag or table only
+    // comes back if its file is byte for byte what it was at the save: an
+    // edited file may have new entries or ratios the saved one knows nothing
+    // of, so it starts full instead. Returns a note for each one that did not
+    // come back, for the user to read.
     pub(crate) fn restore(self, fresh: &mut Tables) -> Vec<String> {
-        let mut notes = Vec::new();
+        // Taken apart in full, so a field added to the file has to be thought
+        // about here too.
+        let Self {
+            version: _,
+            config_hashes,
+            bags,
+            tables,
+        } = self;
 
-        restore_section("bags", self.bags, &mut fresh.bags, &self.config_hashes, &fresh.hashes, &mut notes);
-        restore_section("tables", self.tables, &mut fresh.tables, &self.config_hashes, &fresh.hashes, &mut notes);
+        let bag_notes =
+            restore_section("bags", bags, &mut fresh.bags, &config_hashes, &fresh.hashes);
+        let table_notes = restore_section(
+            "tables",
+            tables,
+            &mut fresh.tables,
+            &config_hashes,
+            &fresh.hashes,
+        );
 
-        notes
+        [bag_notes, table_notes].concat()
     }
 }
 
@@ -57,8 +73,9 @@ fn restore_section<S>(
     fresh: &mut BTreeMap<String, S>,
     saved_hashes: &BTreeMap<String, String>,
     fresh_hashes: &BTreeMap<String, String>,
-    notes: &mut Vec<String>,
-) {
+) -> Vec<String> {
+    let mut notes = Vec::new();
+
     for (name, state) in saved {
         let key = hash_key(section, &name);
 
@@ -69,16 +86,21 @@ fn restore_section<S>(
 
         match (saved_hashes.get(&key), fresh_hashes.get(&key)) {
             (Some(saved), Some(fresh)) if saved == fresh => *slot = state,
-            _ => notes.push(format!("{key} changed since the last save, {name} starts full")),
+            _ => notes.push(format!(
+                "{key} changed since the last save, {name} starts full"
+            )),
         }
     }
+
+    notes
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{BTreeSet, HashMap};
+
     use super::*;
     use crate::modules::draw::Draw;
-    use std::collections::{BTreeSet, HashMap};
 
     fn session() -> SessionFile {
         let bag: Bag<Encounter> = Bag::try_new(
@@ -119,22 +141,29 @@ mod tests {
         assert_eq!(back.version, 1);
         assert_eq!(back.config_hashes, session().config_hashes);
 
-        /* The bag comes back through try_new: same entries by their source
-           text, the same 3:1 copies, and `unique` kept. */
+        // The bag comes back through try_new: same entries by their source
+        // text, the same 3:1 copies, and `unique` kept.
         let bag = &back.bags["artifacts"];
-        let texts: BTreeSet<&str> = bag.distributions.keys().map(|e| e.raw_text.as_str()).collect();
+        let texts: BTreeSet<&str> = bag
+            .distributions
+            .keys()
+            .map(|e| e.raw_text.as_str())
+            .collect();
         assert_eq!(texts, BTreeSet::from(["**common**", "rare"]));
         assert_eq!(bag.remaining(), 4);
         assert!(bag.unique());
 
-        /* Ranges survive as their "1-19" / "20" spelling and back. */
+        // Ranges survive as their "1-19" / "20" spelling and back.
         let table = &back.tables["rumours"];
         let rows: BTreeSet<(u32, u32, &str)> = table
             .items
             .iter()
             .map(|(range, item)| (*range.start(), *range.end(), item.value.raw_text.as_str()))
             .collect();
-        assert_eq!(rows, BTreeSet::from([(1, 19, "static"), (20, 20, "*patrol*")]));
+        assert_eq!(
+            rows,
+            BTreeSet::from([(1, 19, "static"), (20, 20, "*patrol*")])
+        );
         assert!(!table.unique());
     }
 
@@ -147,8 +176,8 @@ mod tests {
         let mut session = session();
         let bag = session.bags.get_mut("artifacts").unwrap();
 
-        /* Unique, so one draw takes every copy of whichever entry came up:
-           4 copies become 1 (common drawn) or 3 (rare drawn). */
+        // Unique, so one draw takes every copy of whichever entry came up:
+        // 4 copies become 1 (common drawn) or 3 (rare drawn).
         let drawn = bag.draw().unwrap();
         let left = bag.remaining();
         assert!(left < 4);
@@ -180,17 +209,22 @@ mod tests {
         let mut back = round_trip(&session);
         let table = back.tables.get_mut("rumours").unwrap();
 
-        /* The row that came up is still used: the only draw left is the other
-           one, and then the table is empty. */
+        // The row that came up is still used: the only draw left is the other
+        // one, and then the table is empty.
         assert_eq!(table.remaining(), 1);
-        assert_ne!(table.draw().unwrap(), drawn, "{} came back available", drawn.raw_text);
+        assert_ne!(
+            table.draw().unwrap(),
+            drawn,
+            "{} came back available",
+            drawn.raw_text
+        );
         assert_eq!(table.draw(), None);
     }
 
-    /* -- Restoring over a fresh config ---------------------------------------- */
+    // -- Restoring over a fresh config ----------------------------------------
 
-    /* What a start loads: the session's bag and table as the files say, full,
-       with `hash` as the fingerprint of both files. */
+    // What a start loads: the session's bag and table as the files say, full,
+    // with `hash` as the fingerprint of both files.
     fn fresh(hash: &str) -> Tables {
         let saved = session();
         Tables {
@@ -203,7 +237,7 @@ mod tests {
         }
     }
 
-    /* The session after a draw from the bag, saved against `hash`. */
+    // The session after a draw from the bag, saved against `hash`.
     fn played(hash: &str) -> SessionFile {
         let mut tables = fresh(hash);
         tables.bags.get_mut("artifacts").unwrap().draw().unwrap();
@@ -230,7 +264,12 @@ mod tests {
         let notes = played("before").restore(&mut tables);
 
         assert_eq!(tables.bags["artifacts"].remaining(), 4);
-        assert!(notes.iter().any(|note| note.contains("bags/artifacts.toml changed")), "{notes:?}");
+        assert!(
+            notes
+                .iter()
+                .any(|note| note.contains("bags/artifacts.toml changed")),
+            "{notes:?}"
+        );
     }
 
     #[test]
@@ -241,7 +280,12 @@ mod tests {
         let notes = played("same").restore(&mut tables);
 
         assert!(tables.bags.is_empty());
-        assert!(notes.iter().any(|note| note.contains("bags/artifacts.toml is gone")), "{notes:?}");
+        assert!(
+            notes
+                .iter()
+                .any(|note| note.contains("bags/artifacts.toml is gone")),
+            "{notes:?}"
+        );
     }
 
     #[test]

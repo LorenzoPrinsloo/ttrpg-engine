@@ -1,9 +1,11 @@
-use crate::markup::DiceExpr;
-use colored::Color;
 use std::hash::{Hash, Hasher};
 use std::mem::discriminant;
 
-/* A parsed markup tree. Styles are branches, text and dice are leaves. */
+use colored::Color;
+
+use crate::markup::DiceExpr;
+
+// A parsed markup tree. Styles are branches, text and dice are leaves.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
     Text(String),
@@ -14,9 +16,8 @@ pub enum Node {
     Dice(DiceExpr),
 }
 
-
-/* Hand written because `colored::Color` is not `Hash`, and a tree stored in
-   an `Encounter` has to be hashable to key `Bag`'s distribution map. */
+// Hand written because `colored::Color` is not `Hash`, and a tree stored in
+// an `Encounter` has to be hashable to key `Bag`'s distribution map.
 impl Hash for Node {
     fn hash<H: Hasher>(&self, state: &mut H) {
         discriminant(self).hash(state);

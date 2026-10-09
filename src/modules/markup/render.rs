@@ -1,5 +1,6 @@
-use crate::markup::{Node, parse};
 use colored::{Color, ColoredString, Colorize};
+
+use crate::markup::{Node, parse};
 
 pub fn render(input: &str) -> String {
     render_nodes(&parse(input))
@@ -43,14 +44,38 @@ fn write_nodes(nodes: &[Node], style: Style, out: &mut String) {
         match node {
             Node::Text(text) => out.push_str(&style.apply(text).to_string()),
             Node::Dice(expr) => out.push_str(&style.apply(&expr.eval().to_string()).to_string()),
-            Node::Bold(children) => write_nodes(children, Style { bold: true, ..style }, out),
-            Node::Italic(children) => write_nodes(children, Style { italic: true, ..style }, out),
-            Node::Underline(children) => {
-                write_nodes(children, Style { underline: true, ..style }, out)
-            }
-            Node::Color { color, children } => {
-                write_nodes(children, Style { color: Some(*color), ..style }, out)
-            }
+            Node::Bold(children) => write_nodes(
+                children,
+                Style {
+                    bold: true,
+                    ..style
+                },
+                out,
+            ),
+            Node::Italic(children) => write_nodes(
+                children,
+                Style {
+                    italic: true,
+                    ..style
+                },
+                out,
+            ),
+            Node::Underline(children) => write_nodes(
+                children,
+                Style {
+                    underline: true,
+                    ..style
+                },
+                out,
+            ),
+            Node::Color { color, children } => write_nodes(
+                children,
+                Style {
+                    color: Some(*color),
+                    ..style
+                },
+                out,
+            ),
         }
     }
 }
@@ -59,8 +84,8 @@ fn write_nodes(nodes: &[Node], style: Style, out: &mut String) {
 mod tests {
     use super::*;
 
-    /* Tests assert against ANSI output, so colouring must not be turned off
-       by the environment `cargo test` happens to run in. */
+    // Tests assert against ANSI output, so colouring must not be turned off
+    // by the environment `cargo test` happens to run in.
     fn render_colored(input: &str) -> String {
         colored::control::set_override(true);
         render(input)
@@ -96,7 +121,7 @@ mod tests {
 
     #[test]
     fn dice_inherit_surrounding_styles() {
-        /* A d1 always rolls 1, so 3d1 is deterministically 3. */
+        // A d1 always rolls 1, so 3d1 is deterministically 3.
         assert_eq!(
             render_colored("{red|**[3d1]**}"),
             "3".red().bold().to_string()

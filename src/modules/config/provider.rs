@@ -1,8 +1,8 @@
 use figment::value::{Dict, Map, Value};
 use figment::{Error, Metadata, Profile, Provider};
 
-/* Puts everything `inner` provides under `section.name`, so many files can be
-   merged into one document without their keys colliding. */
+// Puts everything `inner` provides under `section.name`, so many files can be
+// merged into one document without their keys colliding.
 pub(crate) struct Nested<P> {
     section: &'static str,
     name: String,
@@ -11,10 +11,14 @@ pub(crate) struct Nested<P> {
 
 impl<P: Provider> Nested<P> {
     pub(crate) fn new(section: &'static str, name: impl Into<String>, inner: P) -> Self {
-        Self { section, name: name.into(), inner }
+        Self {
+            section,
+            name: name.into(),
+            inner,
+        }
     }
 
-    /* `{ items: [...] }` becomes `{ section: { name: { items: [...] } } }`. */
+    // `{ items: [...] }` becomes `{ section: { name: { items: [...] } } }`.
     fn wrap(&self, contents: Dict) -> Dict {
         let file = Dict::from([(self.name.clone(), Value::from(contents))]);
         Dict::from([(self.section.to_string(), Value::from(file))])
