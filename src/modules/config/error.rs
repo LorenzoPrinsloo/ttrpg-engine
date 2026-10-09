@@ -8,6 +8,7 @@ pub enum LoadError {
     NoDirectory { tried: Vec<PathBuf> },
     NoTables { root: PathBuf },
     Name { path: PathBuf },
+    Io { path: PathBuf, error: std::io::Error },
     Config(figment::Error),
 }
 
@@ -31,6 +32,7 @@ impl fmt::Display for LoadError {
                 "{}: a table name cannot be empty or contain spaces, it gets typed at the prompt",
                 path.display()
             ),
+            Self::Io { path, error } => write!(f, "{}: {error}", path.display()),
             /* figment's message already names the key and the file. */
             Self::Config(error) => write!(f, "{error}"),
         }

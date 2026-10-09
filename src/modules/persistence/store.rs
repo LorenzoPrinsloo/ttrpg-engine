@@ -2,6 +2,7 @@ use crate::modules::persistence::session::SessionFile;
 use serde::Deserialize;
 use std::fmt;
 use std::io::{BufWriter, ErrorKind, Write};
+use std::ffi::OsString;
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
 
@@ -14,6 +15,13 @@ pub(crate) struct SessionStore {
 impl SessionStore {
     pub(crate) fn new(dir: impl Into<PathBuf>) -> Self {
         Self { dir: dir.into() }
+    }
+
+    /* The store at `MOTHERSHIP_SESSIONS`, or else in the platform's data
+       directory. Not beside the tables: those are checked in, and a save
+       after every draw would keep the working tree dirty. */
+    pub(crate) fn locate() -> Result<Self, StoreError> {
+        dir(std::env::var_os("MOTHERSHIP_SESSIONS"), dirs::data_dir()).map(Self::new)
     }
 
     /* The file a session name maps to. The name becomes part of a path, so
@@ -78,6 +86,16 @@ impl SessionStore {
     }
 }
 
+/* Pure, so the order can be tested without touching the environment. An
+   override is taken as given, like `MOTHERSHIP_TABLES`. */
+fn dir(over: Option<OsString>, data: Option<PathBuf>) -> Result<PathBuf, StoreError> {
+    match (over, data) {
+        (Some(over), _) => Ok(PathBuf::from(over)),
+        (None, Some(data)) => Ok(data.join("ttrpg-engine").join("sessions")),
+        (None, None) => Err(StoreError::NoDirectory),
+    }
+}
+
 /* Just the version of a session file, read before the rest. Unknown fields
    are ignored, so a file from a newer build would otherwise load with its new
    data quietly dropped, and the next save would erase it. */
@@ -90,6 +108,7 @@ struct Header {
    message that concerns a file starts with its path. */
 #[derive(Debug)]
 pub(crate) enum StoreError {
+    NoDirectory,
     Name { name: String },
     Io { path: PathBuf, error: std::io::Error },
     Json { path: PathBuf, error: serde_json::Error },
@@ -99,6 +118,10 @@ pub(crate) enum StoreError {
 impl fmt::Display for StoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NoDirectory => write!(
+                f,
+                "no data directory to keep sessions in, set MOTHERSHIP_SESSIONS to one"
+            ),
             Self::Name { name } => write!(
                 f,
                 "{name:?} is not a session name, use letters, digits, `-` and `_`"
@@ -232,6 +255,27 @@ mod tests {
 
         assert!(error.contains("newer version"), "{error}");
         assert!(error.contains(&format!("format {}", SessionFile::VERSION + 1)), "{error}");
+    }
+
+    #[test]
+    fn the_override_wins_over_the_data_directory() {
+        let dir = dir(Some("/games".into()), Some("/data".into())).unwrap();
+
+        assert_eq!(dir, Path::new("/games"));
+    }
+
+    #[test]
+    fn sessions_default_to_their_own_folder_in_the_data_directory() {
+        let dir = dir(None, Some("/data".into())).unwrap();
+
+        assert_eq!(dir, Path::new("/data/ttrpg-engine/sessions"));
+    }
+
+    #[test]
+    fn with_nowhere_to_go_the_error_names_the_override() {
+        let error = dir(None, None).err().unwrap().to_string();
+
+        assert!(error.contains("MOTHERSHIP_SESSIONS"), "{error}");
     }
 
     #[test]

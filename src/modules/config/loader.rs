@@ -9,6 +9,7 @@ use figment::Figment;
 use figment::providers::{Format, Toml};
 use serde::Deserialize;
 use crate::config::provider::Nested;
+use crate::modules::config::hash;
 
 #[derive(Deserialize)]
 pub struct Tables {
@@ -16,22 +17,55 @@ pub struct Tables {
     pub bags: BTreeMap<String, Bag<Encounter>>,
     #[serde(default)]
     pub tables: BTreeMap<String, Table<Encounter>>,
+    /* Each file's fingerprint, keyed by its path under the root, as
+       `bags/artifacts.toml`. Not part of the document: filled in beside it. */
+    #[serde(skip)]
+    pub hashes: BTreeMap<String, String>,
+}
+
+/* The key a file's fingerprint is kept under, both here and in a saved
+   session: `bags/artifacts.toml` for the bag called "artifacts". */
+pub(crate) fn hash_key(section: &str, name: &str) -> String {
+    format!("{section}/{name}.toml")
 }
 
 pub fn load() -> Result<(PathBuf, Tables), Vec<LoadError>> {
     let root: PathBuf = paths::resolve().map_err(|error| vec![error])?;
+    let tables = load_from(&root)?;
 
+    Ok((root, tables))
+}
+
+/* Everything under `root`, which is taken as found: no searching. */
+pub(crate) fn load_from(root: &Path) -> Result<Tables, Vec<LoadError>> {
     let mut figment: Figment = Figment::new();
     let mut errors: Vec<LoadError> = Vec::new();
+    let mut hashes: BTreeMap<String, String> = BTreeMap::new();
 
     for section in ["bags", "tables"] {
         for path in toml_files(&root.join(section)) {
-            match name_of(&path) {
-                Ok(name) => {
-                    figment = figment.merge(Nested::new(section, name, Toml::file_exact(path)));
+            let name = match name_of(&path) {
+                Ok(name) => name,
+                Err(error) => {
+                    errors.push(error);
+                    continue;
                 }
-                Err(error) => errors.push(error),
+            };
+
+            /* Read apart from figment, which opens the file itself. An edit
+               landing between the two reads would go unnoticed until the next
+               start, which is fine for a file edited by hand. */
+            match std::fs::read(&path) {
+                Ok(bytes) => {
+                    hashes.insert(hash_key(section, &name), hash::fingerprint(&bytes));
+                }
+                Err(error) => {
+                    errors.push(LoadError::Io { path, error });
+                    continue;
+                }
             }
+
+            figment = figment.merge(Nested::new(section, name, Toml::file_exact(path)));
         }
     }
 
@@ -39,15 +73,17 @@ pub fn load() -> Result<(PathBuf, Tables), Vec<LoadError>> {
         return Err(errors);
     }
 
-    let tables: Tables = figment
+    let mut tables: Tables = figment
         .extract()
         .map_err(|error| error.into_iter().map(LoadError::Config).collect::<Vec<_>>())?;
 
     if tables.bags.is_empty() && tables.tables.is_empty() {
-        return Err(vec![LoadError::NoTables { root }]);
+        return Err(vec![LoadError::NoTables { root: root.to_path_buf() }]);
     }
 
-    Ok((root, tables))
+    tables.hashes = hashes;
+
+    Ok(tables)
 }
 
 fn toml_files(dir: &Path) -> Vec<PathBuf> {
@@ -141,6 +177,25 @@ mod tests {
         assert_eq!(loaded.bags["encounters"].remaining(), 10);
         assert_eq!(loaded.bags["artifacts"].remaining(), 100);
         assert!(loaded.bags["artifacts"].unique());
+    }
+
+    #[test]
+    fn every_file_is_fingerprinted_under_its_path() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(root.path().join("bags")).unwrap();
+        std::fs::create_dir_all(root.path().join("tables")).unwrap();
+        std::fs::write(root.path().join("bags/artifacts.toml"), ARTIFACTS_TOML).unwrap();
+        std::fs::write(root.path().join("tables/rumours.toml"), "[[rows]]\nrange = '1'\ntext = 'x'").unwrap();
+
+        let loaded = load_from(root.path()).unwrap();
+
+        assert_eq!(
+            loaded.hashes,
+            BTreeMap::from([
+                ("bags/artifacts.toml".to_string(), hash::fingerprint(ARTIFACTS_TOML.as_bytes())),
+                ("tables/rumours.toml".to_string(), hash::fingerprint(b"[[rows]]\nrange = '1'\ntext = 'x'")),
+            ])
+        );
     }
 
     #[test]

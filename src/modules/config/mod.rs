@@ -34,6 +34,7 @@
 
 mod error;
 mod file;
+mod hash;
 mod loader;
 mod paths;
 mod range;
@@ -41,4 +42,5 @@ mod provider;
 
 pub use error::LoadError;
 pub use loader::{Tables, load};
+pub(crate) use loader::hash_key;
 pub(crate) use file::{BagFile, RowsFile};

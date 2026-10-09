@@ -18,12 +18,18 @@ const HELP: &str = "\
 **quit**              leave, as does ctrl-D";
 
 /* Runs a session over `bags` and `tables`. With `args` it runs them as a
-   single command and exits; otherwise it prompts until `quit` or end of input. */
-pub fn run(bags: Vec<NamedBag>, tables: Vec<NamedTable>, args: &[String]) {
+   single command and exits; otherwise it prompts until `quit` or end of input.
+   `save` is handed the bags and tables after every command that drew or
+   refilled, so quitting any way at all loses nothing. */
+pub fn run<F>(bags: Vec<NamedBag>, tables: Vec<NamedTable>, args: &[String], mut save: F)
+where
+    F: FnMut(&[NamedBag], &[NamedTable]),
+{
     let mut session = Session::new(bags, tables);
 
     if !args.is_empty() {
         session.command(&args.join(" "));
+        session.save_if_changed(&mut save);
         return;
     }
 
@@ -38,7 +44,10 @@ pub fn run(bags: Vec<NamedBag>, tables: Vec<NamedTable>, args: &[String]) {
 
         match lines.next() {
             Some(Ok(line)) => {
-                if session.command(&line) == Flow::Quit {
+                let flow = session.command(&line);
+                session.save_if_changed(&mut save);
+
+                if flow == Flow::Quit {
                     break;
                 }
             }
@@ -64,6 +73,8 @@ enum Flow {
 struct Session {
     bags: Vec<NamedBag>,
     tables: Vec<NamedTable>,
+    /* Whether a draw or refill reached anything since the last save. */
+    changed: bool,
 }
 
 /* The one bag or table a name resolved to. Borrowing it here rather than
@@ -85,7 +96,13 @@ impl Session {
             panic!("two tables are called {:?}, names have to be unique", pair[0]);
         }
 
-        Session { bags, tables }
+        Session { bags, tables, changed: false }
+    }
+
+    fn save_if_changed(&mut self, save: &mut impl FnMut(&[NamedBag], &[NamedTable])) {
+        if std::mem::take(&mut self.changed) {
+            save(&self.bags, &self.tables);
+        }
     }
 
     fn command(&mut self, line: &str) -> Flow {
@@ -127,8 +144,9 @@ impl Session {
         match self.resolve(name) {
             Some(Found::Bag(name, bag)) => draw_from(name, bag, count),
             Some(Found::Table(name, table)) => draw_from(name, table, count),
-            None => {}
+            None => return,
         }
+        self.changed = true;
     }
 
     /* `refill [name]`, or everything when no name is given. */
@@ -140,14 +158,16 @@ impl Session {
             for (name, table) in &mut self.tables {
                 refill_one(name, table);
             }
+            self.changed = true;
             return;
         }
 
         match self.resolve(name) {
             Some(Found::Bag(name, bag)) => refill_one(name, bag),
             Some(Found::Table(name, table)) => refill_one(name, table),
-            None => {}
+            None => return,
         }
+        self.changed = true;
     }
 
     /* Borrows the one bag or table `name` addresses, telling the user when
@@ -372,5 +392,30 @@ mod tests {
         assert!(row(name, bag).contains("1 left"));
         assert!(row(rolling, table).contains("1 rows"));
         assert!(row(consuming, unique_table).contains("1 left  unique"));
+    }
+
+    fn saves(session: &mut Session, line: &str) -> usize {
+        let mut count = 0;
+        session.command(line);
+        session.save_if_changed(&mut |_: &[NamedBag], _: &[NamedTable]| count += 1);
+        count
+    }
+
+    #[test]
+    fn drawing_and_refilling_save() {
+        let mut session = session();
+
+        assert_eq!(saves(&mut session, "draw artifacts"), 1);
+        assert_eq!(saves(&mut session, "refill artifacts"), 1);
+        assert_eq!(saves(&mut session, "refill"), 1);
+    }
+
+    #[test]
+    fn looking_and_rolling_do_not_save() {
+        let mut session = session();
+
+        for line in ["tables", "help", "roll 2d6", "render *x*", "", "draw nothing-by-that-name"] {
+            assert_eq!(saves(&mut session, line), 0, "{line:?}");
+        }
     }
 }
