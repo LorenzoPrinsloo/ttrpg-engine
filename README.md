@@ -12,7 +12,7 @@ Underneath it is a small study in *kinds of randomness*: dice that forget, bags 
 cargo run                                   # interactive shell
 cargo run -- draw encounters                # draw once and exit
 cargo run -- roll 2d6+3                     # roll a dice expression
-cargo run -- --session derelict draw art 3  # three draws, saved in the "derelict" session
+cargo run -- --session derelict draw art 3  # three draws, saved in the "derelict" session (see Sessions)
 ```
 
 ```text
@@ -70,18 +70,29 @@ text = '''{bright cyan|**Something answers.**} Make a *Fear Save*.'''
 
 ## Markup
 
+Entry text can be styled, coloured and include dice. This is real output from the `render` command:
+
+![Markup examples with colours and styles](docs/images/markup-colours.svg)
+
 | Syntax | Result |
 |---|---|
 | `**text**`, `*text*`, `__text__` | bold, italic, underline |
-| `{red\|text}` | coloured text (named colours or hex) |
-| `[2d6+3]` | a dice expression, rolled when the entry is shown |
+| `{red\|text}` | coloured text: terminal colours, `grey`, `orange`, `pink`, `brown` or hex |
+| `[2d6+3]` | a dice expression, rolled each time the entry is shown |
 | `\x` | the next character, literally |
 
-Anything malformed, such as an unclosed span or an unknown colour, is shown as literal text, so a typo in a file never stops the game.
+Anything malformed is shown as written, so a typo in a file never stops the game. **[Markup guide](docs/markup.md)** covers nesting rules, every colour, dice, escapes and more examples.
 
 ## Sessions
 
-Each game is a named session, saved after every command that changes a bag or table. `MOTHERSHIP_SESSIONS` sets where sessions are kept; by default it's your platform's data directory. If you edit a file between sessions, that bag or table starts fresh from the file, with a note. A session file that exists but can't be read stops the program, rather than being overwritten on the first draw.
+Each game is saved as a named session, so a bag remembers what has come out between game nights:
+
+```sh
+ttrpg-engine --session derelict draw encounters   # saved in derelict.json
+ttrpg-engine draw encounters                      # the "default" session
+```
+
+The session saves after every draw, refill or reset, and atomically, so a crash never leaves half a file. If you edit a config file between sessions, that bag or table starts fresh from the file, with a note. A session file that can't be read stops the program rather than being overwritten. **[Sessions guide](docs/sessions.md)** covers where sessions are kept, the file format, `refill` versus `reset`, starting a bag part-drawn, and what happens when files change.
 
 ## Kinds of random
 
@@ -164,6 +175,8 @@ Besides unit and end-to-end tests, [proptest](https://proptest-rs.github.io/prop
 - Any text at all parses as markup without crashing.
 
 CI runs all three commands on every push. Coding conventions are in [CLAUDE.md](CLAUDE.md).
+
+The images in the docs are generated: `python3 docs/charts/generate.py` draws the probability charts, and `python3 docs/charts/markup.py` (after `cargo build`) runs the markup examples through the binary.
 
 ## Licence
 

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="659" height="294" viewBox="0 0 659 294" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="14">
+<rect width="659" height="294" rx="10" fill="#1e1f29"/>
+<text x="24" y="30" fill="#c8cbe0" font-size="15" font-weight="bold" font-family="Helvetica, Arial, sans-serif">Styles</text>
+<text x="24" y="56" fill="#9aa0b4" font-size="12" font-family="Helvetica, Arial, sans-serif">you write</text>
+<text x="366.40000000000003" y="56" fill="#9aa0b4" font-size="12" font-family="Helvetica, Arial, sans-serif">the terminal shows</text>
+<rect x="12" y="74" width="635" height="34" rx="4" fill="#272936"/>
+<text x="24" y="96.0" fill="#9aa0b4" xml:space="preserve">**Black Marble**</text>
+<text x="366.40000000000003" y="96.0" xml:space="preserve"><tspan fill="#e6e6e6" font-weight="bold">Black Marble</tspan></text>
+<text x="24" y="130.0" fill="#9aa0b4" xml:space="preserve">*Nothing* on the scopes.</text>
+<text x="366.40000000000003" y="130.0" xml:space="preserve"><tspan fill="#e6e6e6" font-style="italic">Nothing</tspan><tspan fill="#e6e6e6"> on the scopes.</tspan></text>
+<rect x="12" y="142" width="635" height="34" rx="4" fill="#272936"/>
+<text x="24" y="164.0" fill="#9aa0b4" xml:space="preserve">reads back __your own transmission__</text>
+<text x="366.40000000000003" y="164.0" xml:space="preserve"><tspan fill="#e6e6e6">reads back </tspan><tspan fill="#e6e6e6" text-decoration="underline">your own transmission</tspan></text>
+<text x="24" y="198.0" fill="#9aa0b4" xml:space="preserve">**A shape, *barely* moving**</text>
+<text x="366.40000000000003" y="198.0" xml:space="preserve"><tspan fill="#e6e6e6" font-weight="bold">A shape, </tspan><tspan fill="#e6e6e6" font-weight="bold" font-style="italic">barely</tspan><tspan fill="#e6e6e6" font-weight="bold"> moving</tspan></text>
+<rect x="12" y="210" width="635" height="34" rx="4" fill="#272936"/>
+<text x="24" y="232.0" fill="#9aa0b4" xml:space="preserve">__**Make a Fear Save.**__</text>
+<text x="366.40000000000003" y="232.0" xml:space="preserve"><tspan fill="#e6e6e6" font-weight="bold" text-decoration="underline">Make a Fear Save.</tspan></text>
+<text x="24" y="266.0" fill="#9aa0b4" xml:space="preserve">***x***</text>
+<text x="366.40000000000003" y="266.0" xml:space="preserve"><tspan fill="#e6e6e6">*</tspan><tspan fill="#e6e6e6" font-weight="bold">x</tspan><tspan fill="#e6e6e6">*</tspan></text>
+</svg>

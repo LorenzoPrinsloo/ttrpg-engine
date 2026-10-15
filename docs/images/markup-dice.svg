@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="676" height="294" viewBox="0 0 676 294" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="14">
+<rect width="676" height="294" rx="10" fill="#1e1f29"/>
+<text x="24" y="30" fill="#c8cbe0" font-size="15" font-weight="bold" font-family="Helvetica, Arial, sans-serif">Dice, rolled when the entry is shown</text>
+<text x="24" y="56" fill="#9aa0b4" font-size="12" font-family="Helvetica, Arial, sans-serif">you write</text>
+<text x="400.0" y="56" fill="#9aa0b4" font-size="12" font-family="Helvetica, Arial, sans-serif">the terminal shows</text>
+<rect x="12" y="74" width="652" height="34" rx="4" fill="#272936"/>
+<text x="24" y="96.0" fill="#9aa0b4" xml:space="preserve">[1d10] Escaped Child Android(s)</text>
+<text x="400.0" y="96.0" xml:space="preserve"><tspan fill="#e6e6e6">6 Escaped Child Android(s)</tspan></text>
+<text x="24" y="130.0" fill="#9aa0b4" xml:space="preserve">Damage: [2d6+3]</text>
+<text x="400.0" y="130.0" xml:space="preserve"><tspan fill="#e6e6e6">Damage: 7</tspan></text>
+<rect x="12" y="142" width="652" height="34" rx="4" fill="#272936"/>
+<text x="24" y="164.0" fill="#9aa0b4" xml:space="preserve">Drift: [1d20-1d4+2] metres</text>
+<text x="400.0" y="164.0" xml:space="preserve"><tspan fill="#e6e6e6">Drift: 6 metres</tspan></text>
+<text x="24" y="198.0" fill="#9aa0b4" xml:space="preserve">**[1d5] bodies** in the corridor</text>
+<text x="400.0" y="198.0" xml:space="preserve"><tspan fill="#e6e6e6" font-weight="bold">1</tspan><tspan fill="#e6e6e6" font-weight="bold"> bodies</tspan><tspan fill="#e6e6e6"> in the corridor</tspan></text>
+<rect x="12" y="210" width="652" height="34" rx="4" fill="#272936"/>
+<text x="24" y="232.0" fill="#9aa0b4" xml:space="preserve">Everyone Close takes {red|[1d5] Stress}.</text>
+<text x="400.0" y="232.0" xml:space="preserve"><tspan fill="#e6e6e6">Everyone Close takes </tspan><tspan fill="#ff5c57">1</tspan><tspan fill="#ff5c57"> Stress</tspan><tspan fill="#e6e6e6">.</tspan></text>
+<text x="24" y="266.0" fill="#9aa0b4" xml:space="preserve">worth **[1d5]mcr**</text>
+<text x="400.0" y="266.0" xml:space="preserve"><tspan fill="#e6e6e6">worth </tspan><tspan fill="#e6e6e6" font-weight="bold">1</tspan><tspan fill="#e6e6e6" font-weight="bold">mcr</tspan></text>
+</svg>
