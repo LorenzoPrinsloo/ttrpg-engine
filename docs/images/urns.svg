@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="400" viewBox="0 0 820 400" font-family="Helvetica, Arial, sans-serif">
+<rect width="820" height="400" fill="#ffffff"/>
+<text x="20.00" y="30.00" font-size="16" text-anchor="start" font-weight="bold" fill="#2b2b2b">Twenty draws from 10 red and 10 blue, three replacement rules</text>
+<line x1="70.00" y1="310.00" x2="790.00" y2="310.00" stroke="#e6e6e6"/>
+<text x="62.00" y="314.00" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">0%</text>
+<line x1="70.00" y1="225.33" x2="790.00" y2="225.33" stroke="#e6e6e6"/>
+<text x="62.00" y="229.33" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">10%</text>
+<line x1="70.00" y1="140.67" x2="790.00" y2="140.67" stroke="#e6e6e6"/>
+<text x="62.00" y="144.67" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">20%</text>
+<line x1="70.00" y1="56.00" x2="790.00" y2="56.00" stroke="#e6e6e6"/>
+<text x="62.00" y="60.00" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">30%</text>
+<text x="87.14" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">0</text>
+<text x="258.57" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">5</text>
+<text x="430.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">10</text>
+<text x="601.43" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">15</text>
+<text x="772.86" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">20</text>
+<line x1="70.00" y1="310.00" x2="790.00" y2="310.00" stroke="#777777"/>
+<text x="430.00" y="350.00" font-size="12" text-anchor="middle" font-weight="normal" fill="#777777">red tokens drawn out of 20</text>
+<text x="18.00" y="183.00" font-size="12" text-anchor="middle" font-weight="normal" fill="#777777" transform="rotate(-90 18.00 183.00)">share of runs</text>
+<rect x="414.87" y="56.00" width="10.08" height="254.00" fill="#e45756"/>
+<rect x="116.39" y="309.96" width="10.08" height="0.04" fill="#4c78a8"/>
+<rect x="150.67" y="309.87" width="10.08" height="0.13" fill="#4c78a8"/>
+<rect x="184.96" y="309.11" width="10.08" height="0.89" fill="#4c78a8"/>
+<rect x="219.24" y="305.98" width="10.08" height="4.02" fill="#4c78a8"/>
+<rect x="253.53" y="297.55" width="10.08" height="12.45" fill="#4c78a8"/>
+<rect x="287.82" y="277.53" width="10.08" height="32.47" fill="#4c78a8"/>
+<rect x="322.10" y="249.72" width="10.08" height="60.28" fill="#4c78a8"/>
+<rect x="356.39" y="207.34" width="10.08" height="102.66" fill="#4c78a8"/>
+<rect x="390.67" y="176.18" width="10.08" height="133.82" fill="#4c78a8"/>
+<rect x="424.96" y="161.88" width="10.08" height="148.12" fill="#4c78a8"/>
+<rect x="459.24" y="176.23" width="10.08" height="133.77" fill="#4c78a8"/>
+<rect x="493.53" y="206.75" width="10.08" height="103.25" fill="#4c78a8"/>
+<rect x="527.82" y="245.02" width="10.08" height="64.98" fill="#4c78a8"/>
+<rect x="562.10" y="278.80" width="10.08" height="31.20" fill="#4c78a8"/>
+<rect x="596.39" y="297.26" width="10.08" height="12.74" fill="#4c78a8"/>
+<rect x="630.67" y="305.43" width="10.08" height="4.57" fill="#4c78a8"/>
+<rect x="664.96" y="308.86" width="10.08" height="1.14" fill="#4c78a8"/>
+<rect x="699.24" y="309.87" width="10.08" height="0.13" fill="#4c78a8"/>
+<rect x="92.18" y="269.66" width="10.08" height="40.34" fill="#b279a2"/>
+<rect x="126.47" y="270.04" width="10.08" height="39.96" fill="#b279a2"/>
+<rect x="160.76" y="271.26" width="10.08" height="38.74" fill="#b279a2"/>
+<rect x="195.04" y="267.24" width="10.08" height="42.76" fill="#b279a2"/>
+<rect x="229.33" y="270.50" width="10.08" height="39.50" fill="#b279a2"/>
+<rect x="263.61" y="266.52" width="10.08" height="43.48" fill="#b279a2"/>
+<rect x="297.90" y="269.36" width="10.08" height="40.64" fill="#b279a2"/>
+<rect x="332.18" y="269.61" width="10.08" height="40.39" fill="#b279a2"/>
+<rect x="366.47" y="270.93" width="10.08" height="39.07" fill="#b279a2"/>
+<rect x="400.76" y="270.88" width="10.08" height="39.12" fill="#b279a2"/>
+<rect x="435.04" y="267.62" width="10.08" height="42.38" fill="#b279a2"/>
+<rect x="469.33" y="270.67" width="10.08" height="39.33" fill="#b279a2"/>
+<rect x="503.61" y="271.77" width="10.08" height="38.23" fill="#b279a2"/>
+<rect x="537.90" y="269.83" width="10.08" height="40.17" fill="#b279a2"/>
+<rect x="572.18" y="271.82" width="10.08" height="38.18" fill="#b279a2"/>
+<rect x="606.47" y="270.16" width="10.08" height="39.84" fill="#b279a2"/>
+<rect x="640.76" y="269.91" width="10.08" height="40.09" fill="#b279a2"/>
+<rect x="675.04" y="268.39" width="10.08" height="41.61" fill="#b279a2"/>
+<rect x="709.33" y="268.73" width="10.08" height="41.27" fill="#b279a2"/>
+<rect x="743.61" y="269.06" width="10.08" height="40.94" fill="#b279a2"/>
+<rect x="777.90" y="269.36" width="10.08" height="40.64" fill="#b279a2"/>
+<text x="419.92" y="50.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#e45756">100%</text>
+<rect x="70.00" y="357.00" width="14" height="10" fill="#e45756"/>
+<text x="90.00" y="366.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">bag, no replacement: always exactly 10</text>
+<rect x="339.60" y="357.00" width="14" height="10" fill="#4c78a8"/>
+<text x="359.60" y="366.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">dice, put it back: a bell around 10</text>
+<rect x="70.00" y="375.00" width="14" height="10" fill="#b279a2"/>
+<text x="90.00" y="384.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">Pólya urn, put it back plus another: anything goes</text>
+</svg>

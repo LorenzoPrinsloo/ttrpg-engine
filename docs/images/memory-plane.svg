@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="470" viewBox="0 0 820 470" font-family="Helvetica, Arial, sans-serif">
+<rect width="820" height="470" fill="#ffffff"/>
+<text x="20.00" y="30.00" font-size="16" text-anchor="start" font-weight="bold" fill="#2b2b2b">Two axes: how much a mechanic remembers, and which way the memory pushes</text>
+<rect x="110" y="60" width="640" height="165.0" fill="#fbeff3"/>
+<rect x="110" y="225.0" width="640" height="165.0" fill="#eef4fb"/>
+<line x1="110" y1="225.0" x2="750" y2="225.0" stroke="#777777" stroke-dasharray="4 3"/>
+<rect x="110" y="60" width="640" height="330" fill="none" stroke="#777777"/>
+<text x="742.00" y="78.00" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">positive feedback: luck compounds (vindictive)</text>
+<text x="742.00" y="380.00" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">negative feedback: luck cancels out (fair)</text>
+<text x="110.00" y="412.00" font-size="11" text-anchor="start" font-weight="normal" fill="#777777">no memory</text>
+<text x="750.00" y="412.00" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">full memory</text>
+<text x="430.00" y="432.00" font-size="12" text-anchor="middle" font-weight="normal" fill="#777777">memory</text>
+<text x="60.00" y="225.00" font-size="12" text-anchor="middle" font-weight="normal" fill="#777777" transform="rotate(-90 60.00 225.00)">feedback</text>
+<circle cx="135.60" cy="225.00" r="8" fill="#4c78a8" stroke="#4c78a8" stroke-width="3"/>
+<text x="149.60" y="229.00" font-size="12" text-anchor="start" font-weight="normal" fill="#2b2b2b">stateless dice, table rows</text>
+<circle cx="622.00" cy="340.50" r="8" fill="#e45756" stroke="#e45756" stroke-width="3"/>
+<text x="608.00" y="344.50" font-size="12" text-anchor="end" font-weight="normal" fill="#2b2b2b">shuffle bag (Bag)</text>
+<circle cx="673.20" cy="299.25" r="8" fill="#e45756" stroke="#e45756" stroke-width="3"/>
+<text x="659.20" y="303.25" font-size="12" text-anchor="end" font-weight="normal" fill="#2b2b2b">unique bag or table</text>
+<circle cx="622.00" cy="258.00" r="8" fill="#ffffff" stroke="#f2a33a" stroke-width="3"/>
+<text x="608.00" y="262.00" font-size="12" text-anchor="end" font-weight="normal" fill="#2b2b2b">pity timer</text>
+<circle cx="724.40" cy="216.75" r="8" fill="#ffffff" stroke="#54a24b" stroke-width="3"/>
+<text x="710.40" y="220.75" font-size="12" text-anchor="end" font-weight="normal" fill="#2b2b2b">ratchet (the Bends)</text>
+<circle cx="622.00" cy="134.25" r="8" fill="#ffffff" stroke="#1d3557" stroke-width="3"/>
+<text x="608.00" y="138.25" font-size="12" text-anchor="end" font-weight="normal" fill="#2b2b2b">pressure vessel (Stress + Panic)</text>
+<circle cx="698.80" cy="89.70" r="8" fill="#ffffff" stroke="#b279a2" stroke-width="3"/>
+<text x="684.80" y="93.70" font-size="12" text-anchor="end" font-weight="normal" fill="#2b2b2b">Pólya urn</text>
+<circle cx="116" cy="448" r="6" fill="#2b2b2b"/>
+<text x="128.00" y="452.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">in the engine today</text>
+<circle cx="286" cy="448" r="6" fill="#ffffff" stroke="#2b2b2b" stroke-width="2"/>
+<text x="298.00" y="452.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">on the TODO list</text>
+</svg>

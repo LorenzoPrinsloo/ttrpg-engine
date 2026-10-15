@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="380" viewBox="0 0 820 380" font-family="Helvetica, Arial, sans-serif">
+<rect width="820" height="380" fill="#ffffff"/>
+<text x="20.00" y="30.00" font-size="16" text-anchor="start" font-weight="bold" fill="#2b2b2b">Chance the next check is an encounter, after a quiet stretch</text>
+<line x1="70.00" y1="310.00" x2="790.00" y2="310.00" stroke="#e6e6e6"/>
+<text x="62.00" y="314.00" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">0%</text>
+<line x1="70.00" y1="246.50" x2="790.00" y2="246.50" stroke="#e6e6e6"/>
+<text x="62.00" y="250.50" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">25%</text>
+<line x1="70.00" y1="183.00" x2="790.00" y2="183.00" stroke="#e6e6e6"/>
+<text x="62.00" y="187.00" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">50%</text>
+<line x1="70.00" y1="119.50" x2="790.00" y2="119.50" stroke="#e6e6e6"/>
+<text x="62.00" y="123.50" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">75%</text>
+<line x1="70.00" y1="56.00" x2="790.00" y2="56.00" stroke="#e6e6e6"/>
+<text x="62.00" y="60.00" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">100%</text>
+<text x="70.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">0</text>
+<text x="150.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">1</text>
+<text x="230.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">2</text>
+<text x="310.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">3</text>
+<text x="390.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">4</text>
+<text x="470.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">5</text>
+<text x="550.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">6</text>
+<text x="630.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">7</text>
+<text x="710.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">8</text>
+<text x="790.00" y="328.00" font-size="11" text-anchor="middle" font-weight="normal" fill="#777777">9</text>
+<line x1="70.00" y1="310.00" x2="790.00" y2="310.00" stroke="#777777"/>
+<text x="430.00" y="350.00" font-size="12" text-anchor="middle" font-weight="normal" fill="#777777">quiet checks so far</text>
+<text x="18.00" y="183.00" font-size="12" text-anchor="middle" font-weight="normal" fill="#777777" transform="rotate(-90 18.00 183.00)">chance of an encounter next</text>
+<polyline points="70.00,284.60 150.00,284.60 230.00,284.60 310.00,284.60 390.00,284.60 470.00,284.60 550.00,284.60 630.00,284.60 710.00,284.60 790.00,284.60" fill="none" stroke="#4c78a8" stroke-width="2.5" stroke-linejoin="round"/>
+<polyline points="70.00,284.60 150.00,281.78 230.00,278.25 310.00,273.71 390.00,267.67 470.00,259.20 550.00,246.50 630.00,225.33 710.00,183.00 790.00,56.00" fill="none" stroke="#e45756" stroke-width="2.5" stroke-linejoin="round"/>
+<polyline points="70.00,306.19 150.00,302.38 230.00,298.57 310.00,294.76 390.00,290.95 470.00,287.14 550.00,283.33 630.00,279.52 710.00,275.71 790.00,271.90" fill="none" stroke="#f2a33a" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="758.00" y="276.60" font-size="11" text-anchor="end" font-weight="normal" fill="#4c78a8">dice never remember</text>
+<text x="766.00" y="72.00" font-size="11" text-anchor="end" font-weight="normal" fill="#e45756">the bag makes it a certainty</text>
+<rect x="70.00" y="355.00" width="14" height="10" fill="#4c78a8"/>
+<text x="90.00" y="364.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">stateless d100 doubles</text>
+<rect x="240.40" y="355.00" width="14" height="10" fill="#e45756"/>
+<text x="260.40" y="364.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">shuffle bag of 10</text>
+<rect x="379.80" y="355.00" width="14" height="10" fill="#f2a33a"/>
+<text x="399.80" y="364.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">pity timer</text>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="380" viewBox="0 0 820 380" font-family="Helvetica, Arial, sans-serif">
+<rect width="820" height="380" fill="#ffffff"/>
+<text x="20.00" y="30.00" font-size="16" text-anchor="start" font-weight="bold" fill="#2b2b2b">Adding dice changes the shape, not just the range</text>
+<line x1="70.00" y1="310.00" x2="790.00" y2="310.00" stroke="#e6e6e6"/>
+<text x="62.00" y="314.00" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">0%</text>
+<line x1="70.00" y1="239.44" x2="790.00" y2="239.44" stroke="#e6e6e6"/>
+<text x="62.00" y="243.44" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">5%</text>
+<line x1="70.00" y1="168.89" x2="790.00" y2="168.89" stroke="#e6e6e6"/>
+<text x="62.00" y="172.89" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">10%</text>
+<line x1="70.00" y1="98.33" x2="790.00" y2="98.33" stroke="#e6e6e6"/>
+<text x="62.00" y="102.33" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">15%</text>
+<line x1="70.00" y1="310.00" x2="790.00" y2="310.00" stroke="#777777"/>
+<text x="430.00" y="350.00" font-size="12" text-anchor="middle" font-weight="normal" fill="#777777">roll, from lowest to highest possible</text>
+<text x="18.00" y="183.00" font-size="12" text-anchor="middle" font-weight="normal" fill="#777777" transform="rotate(-90 18.00 183.00)">chance</text>
+<polyline points="70.00,239.44 107.89,239.44 145.79,239.44 183.68,239.44 221.58,239.44 259.47,239.44 297.37,239.44 335.26,239.44 373.16,239.44 411.05,239.44 448.95,239.44 486.84,239.44 524.74,239.44 562.63,239.44 600.53,239.44 638.42,239.44 676.32,239.44 714.21,239.44 752.11,239.44 790.00,239.44" fill="none" stroke="#4c78a8" stroke-width="2.5" stroke-linejoin="round"/>
+<polyline points="70.00,270.80 142.00,231.60 214.00,192.41 286.00,153.21 358.00,114.01 430.00,74.81 502.00,114.01 574.00,153.21 646.00,192.41 718.00,231.60 790.00,270.80" fill="none" stroke="#e45756" stroke-width="2.5" stroke-linejoin="round"/>
+<polyline points="70.00,303.47 118.00,290.40 166.00,270.80 214.00,244.67 262.00,212.01 310.00,172.81 358.00,146.68 406.00,133.61 454.00,133.61 502.00,146.68 550.00,172.81 598.00,212.01 646.00,244.67 694.00,270.80 742.00,290.40 790.00,303.47" fill="none" stroke="#54a24b" stroke-width="2.5" stroke-linejoin="round"/>
+<polyline points="70.00,295.89 110.00,281.78 150.00,267.67 190.00,253.56 230.00,239.44 270.00,225.33 310.00,211.22 350.00,197.11 390.00,183.00 430.00,168.89 470.00,183.00 510.00,197.11 550.00,211.22 590.00,225.33 630.00,239.44 670.00,253.56 710.00,267.67 750.00,281.78 790.00,295.89" fill="none" stroke="#1d3557" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="70.00" y="328.00" font-size="11" text-anchor="start" font-weight="normal" fill="#777777">lowest</text>
+<text x="790.00" y="328.00" font-size="11" text-anchor="end" font-weight="normal" fill="#777777">highest</text>
+<rect x="70.00" y="355.00" width="14" height="10" fill="#4c78a8"/>
+<text x="90.00" y="364.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">1d20: flat</text>
+<rect x="166.00" y="355.00" width="14" height="10" fill="#e45756"/>
+<text x="186.00" y="364.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">2d6: a triangle</text>
+<rect x="293.00" y="355.00" width="14" height="10" fill="#54a24b"/>
+<text x="313.00" y="364.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">3d6: a bell</text>
+<rect x="395.20" y="355.00" width="14" height="10" fill="#1d3557"/>
+<text x="415.20" y="364.00" font-size="11" text-anchor="start" font-weight="normal" fill="#2b2b2b">2d10: the panic check</text>
+</svg>
