@@ -15,6 +15,23 @@ What's next, from the [Kinds of random](README.md#kinds-of-random) design notes 
 - [ ] **`simulate` command.** Draw from a bag, table or check N times and print the distribution, like the README charts but in the terminal.
 - [ ] **Integer weights in bag files.** Ratios are rounded to hundredths, so a third can't be written exactly. Weights such as `1, 2, 2` would be exact.
 
+## Modules and packaging
+
+- [ ] **Loadable external modules.** A command such as `load path/to/module.toml` (or a directory of bags and tables) adds an external module to the current session, so people can write, share and mix modules for their games.
+  - The session remembers which modules it loaded, with their paths and fingerprints, and loads them again on the next start, using the same edited-file rules as the built-in config.
+  - Decide what happens when a module's bag or table has the same name as one already loaded: refuse, or namespace it (for example `derelict/encounters`).
+  - An `unload` command, and listing modules in `tables`.
+- [ ] **Package as an installable CLI.** Build standalone binaries for macOS, Linux and Windows, and publish them so people can install without a Rust toolchain: `cargo install`, GitHub releases and possibly Homebrew. Then go through the [Command Line Applications in Rust](https://rust-cli.github.io/book) book and bring the tool in line with its best practices:
+  - argument parsing with `--help` and `--version`
+  - meaningful exit codes, with errors on stderr and results on stdout
+  - human-friendly output in a terminal, and plain output when piped (colour off unless forced)
+  - handling ctrl-C cleanly mid-command
+  - config and data directories that follow each platform's conventions, and finding the config when installed outside the repository
+  - end-to-end tests of the installed binary
+  - shell completions and a man page
+
+  New dependencies such as `clap` need agreeing first, per CLAUDE.md.
+
 ## Engine
 
 - [ ] **Seedable randomness.** Every draw uses `rand::rng()`, so a session can't be replayed and tests can only check statistics, never exact sequences. A seed saved with the session would allow both.
