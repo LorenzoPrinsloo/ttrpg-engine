@@ -32,6 +32,14 @@ What's next, from the [Kinds of random](README.md#kinds-of-random) design notes 
 
   New dependencies such as `clap` need agreeing first, per CLAUDE.md.
 
+## Look and feel
+
+- [ ] **A title screen.** An ASCII-art banner when the shell starts, in the style of Mothership's retro ship computers, with the session name and what's loaded.
+- [ ] **A consistent colour theme.** Colour by meaning: draws, notes, warnings, errors and dice results each look the same everywhere, building on the markup renderer's colours.
+- [ ] **Richer output.** `tables` as an aligned, boxed table. Gauges for how full each bag is (`encounters ███████░░░ 7/10`). Rolls that show each die (`2d6+3 = [4, 2] + 3 = 9`).
+- [ ] **A full-screen TUI mode.** Panes for the bags and tables, a log of what was drawn this session, and a command line, all keyboard-driven (for example with `ratatui`). Bag gauges and the `odds` view would update live as things are drawn.
+- [ ] **Stay script-friendly.** All of this only in an interactive terminal: plain output when piped, and colour off with `NO_COLOR` (see the CLI book item above). New dependencies such as `ratatui` need agreeing first, per CLAUDE.md.
+
 ## Engine
 
 - [ ] **Seedable randomness.** Every draw uses `rand::rng()`, so a session can't be replayed and tests can only check statistics, never exact sequences. A seed saved with the session would allow both.
