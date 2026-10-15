@@ -154,6 +154,12 @@ impl<T: Clone + Eq + std::hash::Hash> Draw for Bag<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
+    use proptest::collection::vec;
+    use proptest::strategy::Strategy;
+    use proptest::{prop_assert, prop_assert_eq, proptest};
+
     use super::*;
 
     fn copies<T: Eq>(bag: &Bag<T>, item: T) -> usize {
@@ -205,5 +211,107 @@ mod tests {
 
         assert!(copies(&bag, "common") > copies(&bag, "uncommon"));
         assert!(copies(&bag, "uncommon") > copies(&bag, "rare"));
+    }
+
+    // Splits 100 hundredths into between one and eight parts, so the ratios
+    // always add up to 1.0, as a valid bag file's do.
+    fn parts_of_a_hundred() -> impl Strategy<Value = Vec<u32>> {
+        vec(1..=40_u32, 1..=8).prop_filter_map("needs room for every part", |weights| {
+            let total: u32 = weights.iter().sum();
+            let parts: Vec<u32> = weights.iter().map(|weight| weight * 100 / total).collect();
+            let short = 100 - parts.iter().sum::<u32>();
+            let parts: Vec<u32> = parts
+                .iter()
+                .enumerate()
+                .map(|(i, part)| if i == 0 { part + short } else { *part })
+                .collect();
+            parts.iter().all(|part| *part > 0).then_some(parts)
+        })
+    }
+
+    fn ratios(parts: &[u32]) -> HashMap<String, f64> {
+        parts
+            .iter()
+            .enumerate()
+            .map(|(i, part)| (format!("item {i}"), f64::from(*part) / 100.0))
+            .collect()
+    }
+
+    fn sorted<T: Ord + Clone>(items: &[T]) -> Vec<T> {
+        let mut items = items.to_vec();
+        items.sort();
+        items
+    }
+
+    proptest! {
+        #[test]
+        fn a_full_bag_holds_copies_in_the_ratio_proportions(parts in parts_of_a_hundred()) {
+            let bag = Bag::try_new(ratios(&parts), None, false).unwrap();
+            let total = bag.remaining();
+
+            for (i, part) in parts.iter().enumerate() {
+                let held = copies(&bag, format!("item {i}"));
+                prop_assert_eq!(held * 100, *part as usize * total, "item {} of {:?}", i, parts);
+            }
+        }
+
+        #[test]
+        fn drawing_a_bag_empty_returns_exactly_its_marbles(parts in parts_of_a_hundred()) {
+            let mut bag = Bag::try_new(ratios(&parts), None, false).unwrap();
+            let marbles = sorted(&bag.items);
+
+            let drawn: Vec<String> = std::iter::from_fn(|| bag.draw()).collect();
+
+            prop_assert_eq!(sorted(&drawn), marbles);
+            prop_assert_eq!(bag.remaining(), 0);
+            prop_assert!(bag.draw().is_none());
+        }
+
+        #[test]
+        fn each_draw_takes_exactly_one_marble_out(parts in parts_of_a_hundred()) {
+            let mut bag = Bag::try_new(ratios(&parts), None, false).unwrap();
+            let start = bag.remaining();
+
+            for taken in 1..=start {
+                bag.draw().unwrap();
+                prop_assert_eq!(bag.remaining(), start - taken);
+            }
+        }
+
+        #[test]
+        fn a_unique_bag_never_repeats_an_item_before_a_refill(parts in parts_of_a_hundred()) {
+            let mut bag = Bag::try_new(ratios(&parts), None, true).unwrap();
+
+            let drawn: Vec<String> = std::iter::from_fn(|| bag.draw()).collect();
+            let distinct: HashSet<&String> = drawn.iter().collect();
+
+            prop_assert_eq!(distinct.len(), drawn.len(), "{:?}", drawn);
+            prop_assert_eq!(drawn.len(), parts.len());
+        }
+
+        #[test]
+        fn filling_a_bag_restores_its_starting_marbles(parts in parts_of_a_hundred(), draws in 0..50_usize) {
+            let mut bag = Bag::try_new(ratios(&parts), None, true).unwrap();
+            let marbles = sorted(&bag.items);
+
+            for _ in 0..draws {
+                bag.draw();
+            }
+            bag.fill();
+
+            prop_assert_eq!(sorted(&bag.items), marbles);
+        }
+
+        #[test]
+        fn ratios_that_do_not_add_up_to_one_are_refused(parts in vec(1..=60_u32, 1..=6)) {
+            let total: u32 = parts.iter().sum();
+            let result = Bag::try_new(ratios(&parts), None, false);
+
+            if total == 100 {
+                prop_assert!(result.is_ok());
+            } else {
+                prop_assert_eq!(result.err(), Some(BagError::Ratios(total)));
+            }
+        }
     }
 }

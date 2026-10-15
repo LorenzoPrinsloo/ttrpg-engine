@@ -234,6 +234,8 @@ fn parse_hex(hex: &str) -> Option<Color> {
 
 #[cfg(test)]
 mod tests {
+    use proptest::{prop_assert_eq, proptest};
+
     use super::*;
 
     fn text(s: &str) -> Node {
@@ -492,5 +494,24 @@ mod tests {
         let deep = format!("{}x{}", "{red|".repeat(10_000), "}".repeat(10_000));
         // The spans within the cap still parse; everything past it is text.
         assert!(matches!(parse(&deep).first(), Some(Node::Color { .. })));
+    }
+
+    proptest! {
+        // Entry text is typed by hand, so any input at all has to parse,
+        // with anything malformed left as literal text.
+        #[test]
+        fn any_text_parses_without_panicking(input in r"\PC*") {
+            parse(&input);
+        }
+
+        #[test]
+        fn text_built_from_markup_characters_parses_without_panicking(input in r"[*_{}|\[\]\\dD0-9+\- a-z]{0,60}") {
+            parse(&input);
+        }
+
+        #[test]
+        fn text_without_markup_characters_is_one_plain_text_node(input in "[a-zA-Z0-9 .,!?']{1,60}") {
+            prop_assert_eq!(parse(&input), vec![text(&input)]);
+        }
     }
 }

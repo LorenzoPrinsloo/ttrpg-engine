@@ -85,6 +85,11 @@ impl Term {
 
 #[cfg(test)]
 mod tests {
+    use proptest::collection::vec;
+    use proptest::prop_oneof;
+    use proptest::strategy::{Just, Strategy};
+    use proptest::{prop_assert, prop_assert_eq, proptest};
+
     use super::*;
     use Sign::{Add, Sub};
 
@@ -162,6 +167,93 @@ mod tests {
         let expr = DiceExpr::parse("2d6+3").unwrap();
         for _ in 0..100 {
             assert!((5..=15).contains(&expr.eval()));
+        }
+    }
+
+    fn terms() -> impl Strategy<Value = Vec<(Sign, Term)>> {
+        let sign = prop_oneof![Just(Add), Just(Sub)];
+        let term = prop_oneof![
+            (1..=20_u32, 1..=100_u32).prop_map(|(n, sides)| Term::Roll(Die { n, sides })),
+            (0..=50_u32).prop_map(Term::Const),
+        ];
+        // The first term is always added: the syntax has no leading sign.
+        vec((sign, term), 1..=5).prop_map(|terms| {
+            terms
+                .into_iter()
+                .enumerate()
+                .map(|(i, (sign, term))| (if i == 0 { Add } else { sign }, term))
+                .collect()
+        })
+    }
+
+    fn written(terms: &[(Sign, Term)]) -> String {
+        terms
+            .iter()
+            .enumerate()
+            .map(|(i, (sign, term))| {
+                let sign = match (i, sign) {
+                    (0, _) => "",
+                    (_, Add) => "+",
+                    (_, Sub) => "-",
+                };
+                let term = match term {
+                    Term::Roll(Die { n, sides }) => format!("{n}d{sides}"),
+                    Term::Const(value) => value.to_string(),
+                };
+                format!("{sign}{term}")
+            })
+            .collect()
+    }
+
+    // The lowest and highest total the expression can roll.
+    fn bounds(terms: &[(Sign, Term)]) -> (i64, i64) {
+        terms.iter().fold((0, 0), |(low, high), (sign, term)| {
+            let (least, most) = match term {
+                Term::Roll(Die { n, sides }) => (i64::from(*n), i64::from(n * sides)),
+                Term::Const(value) => (i64::from(*value), i64::from(*value)),
+            };
+            match sign {
+                Add => (low + least, high + most),
+                Sub => (low - most, high - least),
+            }
+        })
+    }
+
+    proptest! {
+        #[test]
+        fn n_dice_always_land_between_n_and_n_times_the_sides(n in 1..=50_u32, sides in 1..=100_u32) {
+            let total = Die { n, sides }.roll();
+
+            prop_assert!((n..=n * sides).contains(&total), "{}d{} rolled {}", n, sides, total);
+        }
+
+        #[test]
+        fn a_written_expression_parses_back_to_its_terms(terms in terms()) {
+            let parsed = DiceExpr::parse(&written(&terms)).unwrap();
+
+            prop_assert_eq!(parsed.terms, terms);
+        }
+
+        #[test]
+        fn an_expression_always_rolls_within_its_bounds(terms in terms()) {
+            let expression = DiceExpr::parse(&written(&terms)).unwrap();
+            let (low, high) = bounds(&terms);
+
+            for _ in 0..20 {
+                let total = expression.eval();
+                prop_assert!((low..=high).contains(&total), "{} rolled {}", written(&terms), total);
+            }
+        }
+
+        #[test]
+        fn dice_beyond_the_caps_are_refused(n in 1_001..=5_000_u32, sides in 1_000_001..=9_000_000_u32) {
+            let too_many = format!("{n}d6");
+            let too_large = format!("2d{sides}");
+
+            prop_assert!(DiceExpr::parse(&too_many).is_none());
+            prop_assert!(DiceExpr::parse(&too_large).is_none());
+            prop_assert!(DiceExpr::parse("0d6").is_none());
+            prop_assert!(DiceExpr::parse("2d0").is_none());
         }
     }
 }

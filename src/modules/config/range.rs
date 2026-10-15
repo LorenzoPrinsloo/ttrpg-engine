@@ -68,6 +68,8 @@ impl fmt::Display for RowRange {
 
 #[cfg(test)]
 mod tests {
+    use proptest::{prop_assert, prop_assert_eq, proptest};
+
     use super::*;
 
     fn parse(raw: &str) -> Result<RowRange, String> {
@@ -108,5 +110,34 @@ mod tests {
         let error = parse("19-1").err().unwrap();
 
         assert!(error.contains("backwards"), "{error}");
+    }
+
+    proptest! {
+        #[test]
+        fn a_written_range_reads_back_as_the_same_span(start in 0..10_000_u32, width in 0..500_u32) {
+            let span = start..=start + width;
+            let written = RowRange::from(span.clone()).to_string();
+
+            let read = RowRange::try_from(written.clone()).unwrap();
+
+            prop_assert_eq!(read.span(), span);
+            prop_assert_eq!(read.to_string(), written);
+        }
+
+        #[test]
+        fn zero_padding_and_spaces_do_not_change_a_range(start in 0..1_000_u32, width in 0..100_u32) {
+            let end = start + width;
+            let read = RowRange::try_from(format!(" {start:03} - {end:03} ")).unwrap();
+
+            prop_assert_eq!(read.span(), start..=end);
+        }
+
+        #[test]
+        fn a_range_that_runs_backwards_is_refused(end in 0..1_000_u32, extra in 1..100_u32) {
+            let start = end + extra;
+            let error = RowRange::try_from(format!("{start}-{end}")).err().unwrap();
+
+            prop_assert!(error.contains("backwards"), "{}", error);
+        }
     }
 }

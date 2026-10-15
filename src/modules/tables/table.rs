@@ -154,6 +154,11 @@ impl<T: Clone + Eq + std::hash::Hash> Draw for Table<T> {
 mod tests {
     use std::collections::HashSet;
 
+    use proptest::collection::vec;
+    use proptest::strategy::Strategy;
+    use proptest::test_runner::Config;
+    use proptest::{prop_assert, prop_assert_eq, proptest};
+
     use super::*;
 
     // -- helpers ------------------------------------------------------------
@@ -310,5 +315,102 @@ mod tests {
             (0.76..=0.84).contains(&ratio),
             "expected ~0.80 common, got {ratio}"
         );
+    }
+
+    // Rows that never overlap: each starts after the previous one ends,
+    // sometimes leaving a gap that a roll then lands in and rerolls.
+    fn rows() -> impl Strategy<Value = Vec<RangeInclusive<u32>>> {
+        vec((1..=20_u32, 0..=3_u32), 1..=8).prop_map(|shapes| {
+            shapes
+                .iter()
+                .scan(1, |next, (width, gap)| {
+                    let start = *next + gap;
+                    *next = start + width;
+                    Some(start..=start + width - 1)
+                })
+                .collect()
+        })
+    }
+
+    fn named(rows: &[RangeInclusive<u32>], unique: bool) -> Table<String> {
+        let named: Vec<(RangeInclusive<u32>, String)> = rows
+            .iter()
+            .map(|row| (row.clone(), format!("{row:?}")))
+            .collect();
+        table(
+            named
+                .iter()
+                .map(|(row, name)| (row.clone(), name.as_str()))
+                .collect(),
+            unique,
+        )
+    }
+
+    proptest! {
+        #[test]
+        fn rows_that_do_not_overlap_are_accepted(rows in rows()) {
+            let entries = rows.iter().map(|row| (row.clone(), ("row", false))).collect();
+
+            prop_assert!(Table::try_new(entries, false).is_ok());
+        }
+
+        #[test]
+        fn rows_that_share_a_number_are_refused(rows in rows().prop_filter("needs two rows", |rows| rows.len() > 1), which in 0..7_usize) {
+            let i = which % (rows.len() - 1);
+            let next_start = *rows[i + 1].start();
+            let mut entries: HashMap<RangeInclusive<u32>, (&str, bool)> =
+                rows.iter().map(|row| (row.clone(), ("row", false))).collect();
+            entries.remove(&rows[i]);
+            entries.insert(*rows[i].start()..=next_start, ("stretched", false));
+
+            prop_assert!(Table::try_new(entries, false).is_err());
+        }
+
+        #[test]
+        fn every_draw_comes_from_one_of_the_rows(rows in rows()) {
+            let mut table = named(&rows, false);
+            let names: HashSet<String> = rows.iter().map(|row| format!("{row:?}")).collect();
+
+            for _ in 0..100 {
+                let drawn = table.draw().unwrap();
+                prop_assert!(names.contains(&drawn), "{drawn}");
+            }
+            prop_assert_eq!(table.remaining(), rows.len());
+        }
+
+        #[test]
+        fn a_unique_table_gives_each_row_once_then_runs_out(rows in rows()) {
+            let mut table = named(&rows, true);
+
+            let drawn: Vec<String> = std::iter::from_fn(|| table.draw()).collect();
+            let distinct: HashSet<&String> = drawn.iter().collect();
+
+            prop_assert_eq!(drawn.len(), rows.len());
+            prop_assert_eq!(distinct.len(), rows.len());
+            prop_assert_eq!(table.remaining(), 0);
+        }
+    }
+
+    proptest! {
+        // Each case draws thousands of times, so run fewer of them.
+        #![proptest_config(Config::with_cases(16))]
+
+        #[test]
+        fn rows_come_up_in_proportion_to_their_width(rows in rows().prop_filter("needs two rows", |rows| rows.len() > 1)) {
+            let mut table = named(&rows, false);
+            let draws = 20_000;
+            let covered: u32 = rows.iter().map(|row| row.end() - row.start() + 1).sum();
+
+            let mut counts: HashMap<String, u32> = HashMap::new();
+            for _ in 0..draws {
+                *counts.entry(table.draw().unwrap()).or_default() += 1;
+            }
+
+            for row in &rows {
+                let expected = f64::from(row.end() - row.start() + 1) / f64::from(covered);
+                let observed = f64::from(counts.get(&format!("{row:?}")).copied().unwrap_or(0)) / f64::from(draws);
+                prop_assert!((observed - expected).abs() < 0.02, "{row:?}: expected {expected:.3}, got {observed:.3}");
+            }
+        }
     }
 }
